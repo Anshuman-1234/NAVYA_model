@@ -3,105 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Navya Scanner App</title>
+    <title>NAVYA — Tomato Quality Scanner</title>
+    <meta name="description" content="NAVYA AI-powered multimodal tomato quality scanner using image analysis and real-time sensor fusion.">
     <link rel="stylesheet" href="style.css">
-    <!-- Google Fonts for typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-    <div class="app-container">
-        
-        <!-- Header -->
+    <!-- SCAN VIEW -->
+    <div id="scan-view" class="view active">
         <header class="header">
-            <h1><i data-lucide="camera" style="color: #16A34A;"></i> Navya Scanner</h1>
+            <div class="logo">
+                <div class="logo-dot"></div>
+                <span>NAVYA</span>
+            </div>
+            <div class="header-badge">AI Scanner</div>
         </header>
 
-        <!-- Error Message -->
         <div id="error-msg" class="error-msg hidden"></div>
 
-        <!-- Camera Viewport -->
+        <!-- Camera -->
         <div class="camera-viewport">
             <video id="camera-feed" autoplay playsinline muted></video>
-            <canvas id="snapshot-canvas" style="display: none;"></canvas>
+            <canvas id="snapshot-canvas" style="display:none;"></canvas>
+            <div class="scan-frame">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
+            </div>
+            <div class="scan-label">Point at tomato</div>
 
-            <!-- Countdown Overlay -->
+            <!-- Countdown -->
             <div id="countdown-overlay" class="countdown-overlay hidden">
-                <span id="countdown-text" class="fade-up"></span>
+                <div id="countdown-ring">
+                    <span id="countdown-text"></span>
+                </div>
             </div>
 
-            <!-- Loading Overlay -->
+            <!-- Loading -->
             <div id="loading-overlay" class="loading-overlay hidden">
-                <i data-lucide="refresh-cw" class="spin icon-large" style="color: #16A34A;"></i>
-                <div class="loading-text">ANALYZING FUSION DATA...</div>
+                <div class="pulse-ring"></div>
+                <i data-lucide="cpu" class="loading-icon"></i>
+                <div class="loading-text">AI ANALYSIS IN PROGRESS</div>
+                <div class="loading-sub">Fusion Model · Sensor Data · Visual Features</div>
             </div>
         </div>
 
-        <!-- Controls Area -->
-        <div id="controls-area" class="controls-area fade-up">
+        <!-- Controls -->
+        <div id="controls-area" class="controls-area">
             <div class="input-group">
-                <label for="batch-key">UNIQUE BATCH KEY</label>
-                <input type="text" id="batch-key" value="batch_001" placeholder="e.g. batch_001">
+                <label for="batch-key">
+                    <i data-lucide="tag" style="width:13px;"></i>
+                    BATCH ID
+                </label>
+                <input type="text" id="batch-key" value="BATCH-001" placeholder="e.g. BATCH-001" autocomplete="off">
             </div>
-            <button id="start-btn" class="btn-primary">
-                START OPERATION
+            <button id="start-btn" class="btn-scan">
+                <i data-lucide="scan" style="width:20px;"></i>
+                START SCAN
             </button>
         </div>
+    </div>
 
-        <!-- Results Overlay (Glassmorphism) -->
-        <div id="results-overlay" class="results-overlay hidden fade-up-panel">
-            <div class="results-header">
-                <i data-lucide="check-circle" style="color: #16A34A;"></i>
-                <h2>Analysis Complete!</h2>
-            </div>
+    <!-- REPORT VIEW -->
+    <div id="report-view" class="view hidden">
+        <!-- Print header (only visible on print) -->
+        <div class="print-header">
+            <div class="print-logo">NAVYA <span>Quality Analysis Report</span></div>
+            <div id="print-batch" class="print-batch"></div>
+            <div id="print-time" class="print-time"></div>
+        </div>
 
-            <div class="results-grid">
-                <div class="result-card">
-                    <div class="result-label">FRESHNESS SCORE</div>
-                    <div id="freshness-score" class="result-value">--%</div>
-                </div>
-                <div class="result-card">
-                    <div class="result-label">SPOILAGE INDEX</div>
-                    <div id="spoilage-index" class="result-value">--</div>
-                </div>
-                <div class="result-card" style="grid-column: span 2;">
-                    <div class="result-label" style="text-align: center;">REMAINING SHELF LIFE</div>
-                    <div class="result-value" style="text-align: center;"><span id="shelf-life" style="color: #60A5FA;">--</span> Days</div>
-                </div>
-            </div>
+        <!-- Scrollable report content -->
+        <div class="report-scroll">
 
-            <div class="telemetry-card">
-                <div class="result-label" style="margin-bottom: 10px;">SENSOR TELEMETRY</div>
-                <div class="telemetry-row">
-                    <span><i data-lucide="thermometer" style="color: #FCA5A5; width: 16px;"></i> <span id="tel-temp">--</span>°C</span>
-                    <span><i data-lucide="droplets" style="color: #60A5FA; width: 16px;"></i> <span id="tel-hum">--</span>%</span>
-                    <span><i data-lucide="activity" style="color: #FBBF24; width: 16px;"></i> <span id="tel-gas">--</span> ppm</span>
+            <!-- Top bar -->
+            <div class="report-topbar no-print">
+                <button id="back-btn" class="icon-btn">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="report-title">Analysis Report</div>
+                <div class="report-actions-top">
+                    <button id="print-pdf-btn" class="icon-btn" title="Print PDF">
+                        <i data-lucide="printer"></i>
+                    </button>
+                    <button id="save-db-btn" class="icon-btn icon-btn-blue" title="Save to DB">
+                        <i data-lucide="database"></i>
+                    </button>
                 </div>
             </div>
 
-            <div class="recommendation-card">
-                <i id="rec-icon" data-lucide="leaf" style="color: #16A34A; margin-top: 2px;"></i>
+            <!-- Status Banner -->
+            <div id="status-banner" class="status-banner">
+                <div class="status-icon-wrap">
+                    <i id="status-icon" data-lucide="check-circle" style="width:28px;height:28px;"></i>
+                </div>
                 <div>
-                    <div class="rec-label">RECOMMENDATION</div>
-                    <div id="rec-text" class="rec-text">--</div>
+                    <div id="grade-text" class="grade-text">--</div>
+                    <div class="status-sub">AI Multimodal Fusion Result</div>
+                </div>
+                <div class="confidence-badge">
+                    <span id="confidence-val">--</span>% Confidence
                 </div>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <button id="print-pdf-btn" class="btn-primary" style="flex: 1; height: 45px; font-size: 13px; gap: 6px; display: flex; align-items: center; justify-content: center;">
-                    <i data-lucide="printer" style="width: 16px;"></i> PRINT PDF
+            <!-- Captured Image -->
+            <div class="section-card">
+                <div class="section-title">
+                    <i data-lucide="image" style="width:15px;color:#16A34A;"></i>
+                    CAPTURED IMAGE
+                </div>
+                <div class="captured-img-wrap">
+                    <img id="captured-img" class="captured-img" src="" alt="Captured tomato image">
+                    <div id="img-badge" class="img-badge">SCAN CAPTURE</div>
+                </div>
+                <div class="img-meta">
+                    <span id="img-batch-label">--</span>
+                    <span id="img-timestamp">--</span>
+                </div>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="section-card">
+                <div class="section-title">
+                    <i data-lucide="bar-chart-2" style="width:15px;color:#16A34A;"></i>
+                    QUALITY METRICS
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">Freshness Score</div>
+                        <div id="freshness-score" class="metric-value fresh">--</div>
+                        <div class="metric-unit">/ 100</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Spoilage Index</div>
+                        <div id="spoilage-index" class="metric-value">--</div>
+                        <div class="metric-unit">/ 100</div>
+                    </div>
+                    <div class="metric-item shelf-span">
+                        <div class="metric-label">Remaining Shelf Life</div>
+                        <div class="shelf-life-row">
+                            <span id="shelf-life" class="metric-value shelf">--</span>
+                            <span class="metric-unit-large">days</span>
+                        </div>
+                        <div class="shelf-bar-wrap">
+                            <div id="shelf-bar" class="shelf-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sensor Telemetry -->
+            <div class="section-card">
+                <div class="section-title">
+                    <i data-lucide="activity" style="width:15px;color:#16A34A;"></i>
+                    LIVE SENSOR TELEMETRY
+                </div>
+                <div class="telemetry-grid">
+                    <div class="telem-item">
+                        <i data-lucide="thermometer" class="telem-icon temp-icon"></i>
+                        <div>
+                            <div class="telem-label">Temperature</div>
+                            <div class="telem-value"><span id="tel-temp">--</span><span class="telem-unit">°C</span></div>
+                        </div>
+                    </div>
+                    <div class="telem-item">
+                        <i data-lucide="droplets" class="telem-icon hum-icon"></i>
+                        <div>
+                            <div class="telem-label">Humidity</div>
+                            <div class="telem-value"><span id="tel-hum">--</span><span class="telem-unit">%</span></div>
+                        </div>
+                    </div>
+                    <div class="telem-item">
+                        <i data-lucide="wind" class="telem-icon gas-icon"></i>
+                        <div>
+                            <div class="telem-label">eCO2</div>
+                            <div class="telem-value"><span id="tel-gas">--</span><span class="telem-unit">ppm</span></div>
+                        </div>
+                    </div>
+                    <div class="telem-item">
+                        <i data-lucide="zap" class="telem-icon tvoc-icon"></i>
+                        <div>
+                            <div class="telem-label">Source</div>
+                            <div id="tel-source" class="telem-value" style="font-size:11px;font-weight:600;">NAVYA ESP32</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendation -->
+            <div id="rec-card" class="section-card rec-card">
+                <div class="section-title">
+                    <i data-lucide="clipboard-list" style="width:15px;color:#16A34A;"></i>
+                    RECOMMENDATION
+                </div>
+                <p id="rec-text" class="rec-text">--</p>
+            </div>
+
+            <!-- Actions (no-print) -->
+            <div class="action-row no-print">
+                <button id="print-pdf-btn2" class="btn-action btn-green">
+                    <i data-lucide="download" style="width:16px;"></i> Download / Print PDF
                 </button>
-                <button id="save-db-btn" class="btn-primary" style="flex: 1; height: 45px; font-size: 13px; gap: 6px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3b82f6, #1e3a8a); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">
-                    <i data-lucide="database" style="width: 16px;"></i> SAVE TO DB
+                <button id="save-db-btn2" class="btn-action btn-blue">
+                    <i data-lucide="database" style="width:16px;"></i> Save to Database
                 </button>
             </div>
-            
-            <button id="reset-btn" class="btn-outline">
-                <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <i data-lucide="refresh-cw" style="width: 16px;"></i> SCAN ANOTHER
-                </div>
+            <button id="reset-btn" class="btn-outline no-print">
+                <i data-lucide="refresh-cw" style="width:14px;"></i> Scan Another
             </button>
+
+            <!-- Print Footer -->
+            <div class="print-footer">
+                <p>Generated by NAVYA Multimodal AI Fusion System · navya-model.vercel.app</p>
+            </div>
+
         </div>
     </div>
 
