@@ -1,7 +1,13 @@
 {
   "version": 2,
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+  "builds": [
+    { "src": "public/**", "use": "@vercel/static" },
+    { "src": "api/predict.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/api/predict", "dest": "/api/predict.py" },
+    { "src": "/style.css", "dest": "/public/style.css" },
+    { "src": "/script.js", "dest": "/public/script.js" },
+    { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }

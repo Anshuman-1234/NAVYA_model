@@ -1,0 +1,10 @@
+# Exclude local-only server files (not needed on Vercel)
+server.js
+backend_api.py
+node_modules/
+data/
+research_plots/
+*.ipynb
+fusion_model/
+Hardware/
+.gitignore
