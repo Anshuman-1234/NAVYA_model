@@ -33,6 +33,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const telGasEl         = document.getElementById('tel-gas');
     const recTextEl        = document.getElementById('rec-text');
 
+    // Forecast Elements
+    const forecastWarningDate = document.getElementById('forecast-warning-date');
+    const forecastSpoilDate   = document.getElementById('forecast-spoil-date');
+    const forecastChartCanvas = document.getElementById('forecastChart');
+    let degradationChart      = null;
+
     // Print elements
     const printBatch = document.getElementById('print-batch');
     const printTime  = document.getElementById('print-time');
@@ -227,6 +233,73 @@ document.addEventListener('DOMContentLoaded', () => {
         // Print meta
         if (printBatch) printBatch.textContent = `Batch: ${batchKey}`;
         if (printTime)  printTime.textContent  = timeStr;
+
+        // ── Forecast Timeline & Chart ──
+        const warningDays = Math.max(1, Math.floor(shelfDays * 0.7));
+        
+        const dateWarning = new Date(now);
+        dateWarning.setDate(dateWarning.getDate() + warningDays);
+        
+        const dateSpoil = new Date(now);
+        dateSpoil.setDate(dateSpoil.getDate() + shelfDays);
+        
+        const formatOptions = { month: 'short', day: 'numeric' };
+        forecastWarningDate.textContent = dateWarning.toLocaleDateString('en-IN', formatOptions);
+        forecastSpoilDate.textContent   = dateSpoil.toLocaleDateString('en-IN', formatOptions);
+
+        if (degradationChart) {
+            degradationChart.destroy();
+        }
+
+        // Simple curve points: Today -> mid -> warning -> spoiled
+        const labels = ['Today', `+${Math.floor(warningDays/2)}d`, `Use By`, `Spoiled`];
+        const dataPoints = [
+            freshScore,
+            Math.max(0, freshScore - (freshScore * 0.2)),
+            Math.max(0, freshScore - (freshScore * 0.6)),
+            0
+        ];
+
+        const ctx = forecastChartCanvas.getContext('2d');
+        degradationChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Freshness Forecast (%)',
+                    data: dataPoints,
+                    borderColor: '#3B82F6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: ['#16A34A', '#3B82F6', '#F59E0B', '#EF4444'],
+                    pointBorderColor: '#0F1519',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#8A9BAD', font: { size: 10, family: 'Inter' } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#8A9BAD', font: { size: 10, family: 'Inter', weight: 600 } }
+                    }
+                }
+            }
+        });
 
         lucide.createIcons();
     }

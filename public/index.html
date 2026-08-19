@@ -6,7 +6,11 @@
     <title>NAVYA — Tomato Quality Scanner</title>
     <meta name="description" content="NAVYA AI-powered multimodal tomato quality scanner using image analysis and real-time sensor fusion.">
     <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Chart.js for graphical plots -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
@@ -151,6 +155,40 @@
                             <div id="shelf-bar" class="shelf-bar"></div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Quality Forecast Graphical Plot -->
+            <div class="section-card">
+                <div class="section-title">
+                    <i data-lucide="trending-down" style="width:15px;color:#3B82F6;"></i>
+                    DEGRADATION FORECAST (EASY VIEW)
+                </div>
+                
+                <!-- Simple Timeline -->
+                <div class="forecast-timeline">
+                    <div class="timeline-point">
+                        <div class="timeline-icon fresh-icon"><i data-lucide="check"></i></div>
+                        <div class="timeline-date">Today</div>
+                        <div class="timeline-status">Fresh</div>
+                    </div>
+                    <div class="timeline-line"></div>
+                    <div class="timeline-point">
+                        <div class="timeline-icon warning-icon"><i data-lucide="alert-triangle"></i></div>
+                        <div class="timeline-date" id="forecast-warning-date">--</div>
+                        <div class="timeline-status">Use By</div>
+                    </div>
+                    <div class="timeline-line"></div>
+                    <div class="timeline-point">
+                        <div class="timeline-icon spoiled-icon"><i data-lucide="x"></i></div>
+                        <div class="timeline-date" id="forecast-spoil-date">--</div>
+                        <div class="timeline-status">Spoiled</div>
+                    </div>
+                </div>
+
+                <!-- Chart Container -->
+                <div class="chart-container">
+                    <canvas id="forecastChart"></canvas>
                 </div>
             </div>
 
