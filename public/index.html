@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Navya Scanner App</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="header">
+            <h1><i data-lucide="camera" style="color: #16A34A;"></i> Navya Scanner</h1>
+        </header>
+
+        <!-- Error Message -->
+        <div id="error-msg" class="error-msg hidden"></div>
+
+        <!-- Camera Viewport -->
+        <div class="camera-viewport">
+            <video id="camera-feed" autoplay playsinline muted></video>
+            <canvas id="snapshot-canvas" style="display: none;"></canvas>
+
+            <!-- Countdown Overlay -->
+            <div id="countdown-overlay" class="countdown-overlay hidden">
+                <span id="countdown-text" class="fade-up"></span>
+            </div>
+
+            <!-- Loading Overlay -->
+            <div id="loading-overlay" class="loading-overlay hidden">
+                <i data-lucide="refresh-cw" class="spin icon-large" style="color: #16A34A;"></i>
+                <div class="loading-text">ANALYZING FUSION DATA...</div>
+            </div>
+        </div>
+
+        <!-- Controls Area -->
+        <div id="controls-area" class="controls-area fade-up">
+            <div class="input-group">
+                <label for="batch-key">UNIQUE BATCH KEY</label>
+                <input type="text" id="batch-key" value="batch_001" placeholder="e.g. batch_001">
+            </div>
+            <button id="start-btn" class="btn-primary">
+                START OPERATION
+            </button>
+        </div>
+
+        <!-- Results Overlay (Glassmorphism) -->
+        <div id="results-overlay" class="results-overlay hidden fade-up-panel">
+            <div class="results-header">
+                <i data-lucide="check-circle" style="color: #16A34A;"></i>
+                <h2>Analysis Complete!</h2>
+            </div>
+
+            <div class="results-grid">
+                <div class="result-card">
+                    <div class="result-label">FRESHNESS SCORE</div>
+                    <div id="freshness-score" class="result-value">--%</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-label">SPOILAGE INDEX</div>
+                    <div id="spoilage-index" class="result-value">--</div>
+                </div>
+                <div class="result-card" style="grid-column: span 2;">
+                    <div class="result-label" style="text-align: center;">REMAINING SHELF LIFE</div>
+                    <div class="result-value" style="text-align: center;"><span id="shelf-life" style="color: #60A5FA;">--</span> Days</div>
+                </div>
+            </div>
+
+            <div class="telemetry-card">
+                <div class="result-label" style="margin-bottom: 10px;">SENSOR TELEMETRY</div>
+                <div class="telemetry-row">
+                    <span><i data-lucide="thermometer" style="color: #FCA5A5; width: 16px;"></i> <span id="tel-temp">--</span>°C</span>
+                    <span><i data-lucide="droplets" style="color: #60A5FA; width: 16px;"></i> <span id="tel-hum">--</span>%</span>
+                    <span><i data-lucide="activity" style="color: #FBBF24; width: 16px;"></i> <span id="tel-gas">--</span> ppm</span>
+                </div>
+            </div>
+
+            <div class="recommendation-card">
+                <i id="rec-icon" data-lucide="leaf" style="color: #16A34A; margin-top: 2px;"></i>
+                <div>
+                    <div class="rec-label">RECOMMENDATION</div>
+                    <div id="rec-text" class="rec-text">--</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button id="print-pdf-btn" class="btn-primary" style="flex: 1; height: 45px; font-size: 13px; gap: 6px; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="printer" style="width: 16px;"></i> PRINT PDF
+                </button>
+                <button id="save-db-btn" class="btn-primary" style="flex: 1; height: 45px; font-size: 13px; gap: 6px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3b82f6, #1e3a8a); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">
+                    <i data-lucide="database" style="width: 16px;"></i> SAVE TO DB
+                </button>
+            </div>
+            
+            <button id="reset-btn" class="btn-outline">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i data-lucide="refresh-cw" style="width: 16px;"></i> SCAN ANOTHER
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
