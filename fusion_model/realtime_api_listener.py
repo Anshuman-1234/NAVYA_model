@@ -34,7 +34,7 @@ class RealtimeFusionEngine:
         secondary_http_url="http://192.168.1.100:3000/api/data",
         mqtt_broker="broker.hivemq.com",
         mqtt_port=1883,
-        mqtt_topic="navya/esp32/sensor/data/001"
+        mqtt_topic="navya/anshuman/sensors"
     ):
         self.http_api_url = http_api_url
         self.secondary_http_url = secondary_http_url
@@ -98,7 +98,7 @@ class RealtimeFusionEngine:
         """
         Sequential Check for Live Telemetry:
         1. Checks Node.js Express API (http://localhost:3000/api/data or http://192.168.1.100:3000/api/data)
-        2. Checks HiveMQ MQTT Subscriber Cache (navya/esp32/sensor/data/001)
+        2. Checks HiveMQ MQTT Subscriber Cache (navya/anshuman/sensors)
         3. If no telemetry is received yet (temperature is None), raises SYSTEM FAIL.
         """
         # Step 1A: Check Primary HTTP API Endpoint (localhost:3000)

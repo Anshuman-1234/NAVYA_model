@@ -13,7 +13,7 @@ app.use(express.json());
 // MQTT
 // =================================================
 const MQTT_BROKER = "mqtt://broker.hivemq.com:1883";
-const MQTT_TOPIC = "navya/esp32/sensor/data/001";
+const MQTT_TOPIC = "navya/anshuman/sensors";
 
 // =================================================
 // Store latest sensor data
