@@ -337,6 +337,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // ── Live Telemetry WebSocket ──
+    const liveTemp = document.getElementById('live-temp');
+    const liveHum = document.getElementById('live-hum');
+    const liveEco2 = document.getElementById('live-eco2');
+
+    function connectLiveTelemetry() {
+        if (typeof mqtt === 'undefined') {
+            console.warn("MQTT.js not loaded.");
+            return;
+        }
+        console.log("Connecting to Live MQTT WebSockets...");
+        const client = mqtt.connect('ws://broker.hivemq.com:8000/mqtt');
+
+        client.on('connect', () => {
+            console.log("Connected to HiveMQ WebSockets!");
+            client.subscribe('navya/anshuman/sensors');
+        });
+
+        client.on('message', (topic, message) => {
+            try {
+                const data = JSON.parse(message.toString());
+                if (data.temperature != null) liveTemp.textContent = data.temperature.toFixed(1);
+                if (data.humidity != null) liveHum.textContent = data.humidity.toFixed(1);
+                if (data.eco2 != null) liveEco2.textContent = data.eco2;
+            } catch(e) {
+                console.error("Invalid live MQTT JSON", e);
+            }
+        });
+    }
+
     // ── Init ──
     startCamera();
+    connectLiveTelemetry();
 });

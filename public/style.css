@@ -88,6 +88,33 @@ body {
 }
 .hidden { display: none !important; }
 
+/* Live Telemetry Banner */
+.live-telemetry-banner {
+  margin: 0 16px;
+  padding: 8px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.live-indicator {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 800; letter-spacing: 1px; color: var(--green);
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse 1.5s infinite;
+}
+.live-data-row {
+  display: flex; gap: 12px;
+  font-size: 11px; font-weight: 600; color: var(--text);
+}
+.live-data-row span {
+  display: flex; align-items: center; gap: 4px;
+}
+
 /* =============================================
    CAMERA VIEWPORT
    ============================================= */

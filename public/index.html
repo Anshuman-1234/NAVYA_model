@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- Chart.js for graphical plots -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MQTT.js for Real-time WebSockets -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -25,6 +27,16 @@
         </header>
 
         <div id="error-msg" class="error-msg hidden"></div>
+
+        <!-- Live Telemetry Banner (WebSocket) -->
+        <div class="live-telemetry-banner">
+            <div class="live-indicator"><div class="live-dot"></div> LIVE SENSORS</div>
+            <div class="live-data-row">
+                <span><i data-lucide="thermometer" style="width:12px;"></i> <span id="live-temp">--</span>°C</span>
+                <span><i data-lucide="droplets" style="width:12px;"></i> <span id="live-hum">--</span>%</span>
+                <span><i data-lucide="wind" style="width:12px;"></i> <span id="live-eco2">--</span>ppm</span>
+            </div>
+        </div>
 
         <!-- Camera -->
         <div class="camera-viewport">
