@@ -20,7 +20,7 @@
     <div id="scan-view" class="view active">
         <header class="header">
             <div class="logo">
-                <img src="logo.jpeg" class="logo-img" alt="NAVYA Logo">
+                <div class="logo-dot"></div>
                 <span>NAVYA</span>
             </div>
             <div class="header-badge">AI Scanner</div>
@@ -86,14 +86,9 @@
     <div id="report-view" class="view hidden">
         <!-- Print header (only visible on print) -->
         <div class="print-header">
-            <div class="print-logo-row">
-                <img src="logo.jpeg" class="print-logo-img" alt="NAVYA Logo">
-                <div>
-                    <div class="print-logo">NAVYA <span>Quality Analysis Report</span></div>
-                    <div id="print-batch" class="print-batch"></div>
-                    <div id="print-time" class="print-time"></div>
-                </div>
-            </div>
+            <div class="print-logo">NAVYA <span>Quality Analysis Report</span></div>
+            <div id="print-batch" class="print-batch"></div>
+            <div id="print-time" class="print-time"></div>
         </div>
 
         <!-- Scrollable report content -->
@@ -104,10 +99,7 @@
                 <button id="back-btn" class="icon-btn">
                     <i data-lucide="arrow-left"></i>
                 </button>
-                <div class="report-title-group">
-                    <img src="logo.jpeg" class="report-logo-img" alt="NAVYA Logo">
-                    <div class="report-title">Analysis Report</div>
-                </div>
+                <div class="report-title">Analysis Report</div>
                 <div class="report-actions-top">
                     <button id="print-pdf-btn" class="icon-btn" title="Print PDF">
                         <i data-lucide="printer"></i>

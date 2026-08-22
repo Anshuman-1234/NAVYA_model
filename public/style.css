@@ -59,13 +59,14 @@ body {
   display: flex; align-items: center; gap: 8px;
   font-size: 20px; font-weight: 800; letter-spacing: 1px; color: #fff;
 }
-.logo-img {
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  object-fit: cover;
+.logo-dot {
+  width: 10px; height: 10px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--green);
+  animation: pulse 2s infinite;
 }
-.print-logo-img { width: 48px; height: 48px; }
-.report-logo-img { width: 40px; height: 40px; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.85)} }
 
 .header-badge {
   font-size: 11px; font-weight: 600; letter-spacing: 1px;
