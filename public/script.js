@@ -352,7 +352,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         console.log("Connecting to Live MQTT WebSockets...");
-        const client = mqtt.connect('ws://broker.hivemq.com:8000/mqtt');
+        // Use WSS (Secure WebSockets) on port 8884 to avoid Mixed Content errors on HTTPS (Vercel)
+        const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
 
         client.on('connect', () => {
             console.log("Connected to HiveMQ WebSockets!");
