@@ -51,9 +51,18 @@ class handler(BaseHTTPRequestHandler):
 
         shelf_life_days = round(max(0.5, (freshness_score / 100.0) * 7.5), 1)
 
-        temp = round(21.5 + random.uniform(-1.0, 2.0) if is_fresh else 28.5 + random.uniform(0, 3.0), 1)
-        humidity = round(65.0 + random.uniform(-3.0, 5.0) if is_fresh else 82.0 + random.uniform(0, 6.0), 1)
-        eco2 = int(480 + random.randint(-20, 50) if is_fresh else 1250 + random.randint(100, 400))
+        # Use real live telemetry passed from frontend if available, else fallback to sim
+        temp = body.get('sensor_temperature')
+        if temp is None:
+            temp = round(21.5 + random.uniform(-1.0, 2.0) if is_fresh else 28.5 + random.uniform(0, 3.0), 1)
+            
+        humidity = body.get('sensor_humidity')
+        if humidity is None:
+            humidity = round(65.0 + random.uniform(-3.0, 5.0) if is_fresh else 82.0 + random.uniform(0, 6.0), 1)
+            
+        eco2 = body.get('sensor_eco2')
+        if eco2 is None:
+            eco2 = int(480 + random.randint(-20, 50) if is_fresh else 1250 + random.randint(100, 400))
 
         recommendation = PREVENTIVE_ACTIONS.get(grade, "Maintain optimal storage conditions.")
 

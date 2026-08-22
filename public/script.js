@@ -148,7 +148,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 redRatio:        parseFloat((redPx   / total).toFixed(4)),
                 darkSpotRatio:   parseFloat((darkPx  / total).toFixed(4)),
                 moldRatio:       0.00,
-                textureRoughness: 110.0
+                textureRoughness: 110.0,
+                // Pass the live MQTT values collected by the frontend WebSocket
+                sensor_temperature: parseFloat(document.getElementById('live-temp').textContent) || null,
+                sensor_humidity:    parseFloat(document.getElementById('live-hum').textContent) || null,
+                sensor_eco2:        parseInt(document.getElementById('live-eco2').textContent) || null
             };
 
             // API URL
