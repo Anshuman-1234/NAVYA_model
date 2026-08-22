@@ -59,13 +59,13 @@ body {
   display: flex; align-items: center; gap: 8px;
   font-size: 20px; font-weight: 800; letter-spacing: 1px; color: #fff;
 }
-.logo-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 10px var(--green-glow);
-  animation: pulse 2s infinite;
+.logo-img {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
 }
-@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.85)} }
+.print-logo-img { width: 48px; height: 48px; }
+.report-logo-img { width: 40px; height: 40px; }
 
 .header-badge {
   font-size: 11px; font-weight: 600; letter-spacing: 1px;
@@ -469,6 +469,25 @@ body {
   transition: background 0.2s;
 }
 .btn-outline:hover { background: var(--surface); }
+
+/* Report topbar logo */
+.report-title-group {
+  display: flex; align-items: center; gap: 8px;
+}
+.report-logo-img {
+  width: 28px; height: 28px;
+  border-radius: 6px; object-fit: cover;
+}
+
+/* Print header logo */
+.print-logo-row {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 6px;
+}
+.print-logo-img {
+  width: 56px; height: 56px;
+  border-radius: 10px; object-fit: cover;
+}
 
 /* =============================================
    PRINT STYLES

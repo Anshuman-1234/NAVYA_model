@@ -47,6 +47,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let isProcessing = false;
     let snapshotDataUrl = '';
 
+    // Global live MQTT snapshot (updated every message)
+    let liveSensor = { temperature: null, humidity: null, eco2: null, tvoc: null };
+
+    // Additional report element
+    const telTvocEl = document.getElementById('tel-tvoc');
+
     // ── Camera ──
     async function startCamera() {
         try {
@@ -150,9 +156,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 moldRatio:       0.00,
                 textureRoughness: 110.0,
                 // Pass the live MQTT values collected by the frontend WebSocket
-                sensor_temperature: parseFloat(document.getElementById('live-temp').textContent) || null,
-                sensor_humidity:    parseFloat(document.getElementById('live-hum').textContent) || null,
-                sensor_eco2:        parseInt(document.getElementById('live-eco2').textContent) || null
+                sensor_temperature: liveSensor.temperature,
+                sensor_humidity:    liveSensor.humidity,
+                sensor_eco2:        liveSensor.eco2,
+                sensor_tvoc:        liveSensor.tvoc
             };
 
             // API URL
@@ -223,11 +230,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // Shelf life bar
         shelfBar.style.width = Math.min((shelfDays / maxShelf) * 100, 100) + '%';
 
-        // Telemetry
+        // Telemetry — prefer live MQTT, fallback to API response
         const tel = data.telemetry || {};
-        telTempEl.textContent = tel.temperature != null ? tel.temperature : '--';
-        telHumEl.textContent  = tel.humidity    != null ? tel.humidity    : '--';
-        telGasEl.textContent  = tel.eco2        != null ? tel.eco2        : '--';
+        const dispTemp = liveSensor.temperature != null ? liveSensor.temperature : tel.temperature;
+        const dispHum  = liveSensor.humidity    != null ? liveSensor.humidity    : tel.humidity;
+        const dispEco2 = liveSensor.eco2        != null ? liveSensor.eco2        : tel.eco2;
+        const dispTvoc = liveSensor.tvoc        != null ? liveSensor.tvoc        : null;
+
+        telTempEl.textContent = dispTemp != null ? dispTemp : '--';
+        telHumEl.textContent  = dispHum  != null ? dispHum  : '--';
+        telGasEl.textContent  = dispEco2 != null ? dispEco2 : '--';
+        if (telTvocEl) telTvocEl.textContent = dispTvoc != null ? dispTvoc : '--';
 
         // Recommendation
         recTextEl.textContent = data.recommendation || (isFresh
@@ -363,9 +376,22 @@ document.addEventListener('DOMContentLoaded', () => {
         client.on('message', (topic, message) => {
             try {
                 const data = JSON.parse(message.toString());
-                if (data.temperature != null) liveTemp.textContent = data.temperature.toFixed(1);
-                if (data.humidity != null) liveHum.textContent = data.humidity.toFixed(1);
-                if (data.eco2 != null) liveEco2.textContent = data.eco2;
+                // Update global live sensor store
+                if (data.temperature != null) {
+                    liveSensor.temperature = data.temperature;
+                    liveTemp.textContent = data.temperature.toFixed(1);
+                }
+                if (data.humidity != null) {
+                    liveSensor.humidity = data.humidity;
+                    liveHum.textContent = data.humidity.toFixed(1);
+                }
+                if (data.eco2 != null) {
+                    liveSensor.eco2 = data.eco2;
+                    liveEco2.textContent = data.eco2;
+                }
+                if (data.tvoc != null) {
+                    liveSensor.tvoc = data.tvoc;
+                }
             } catch(e) {
                 console.error("Invalid live MQTT JSON", e);
             }
