@@ -195,18 +195,25 @@ document.addEventListener('DOMContentLoaded', () => {
             // Visual feature extraction (simple pixel analysis)
             const ctx = canvas.getContext('2d');
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            let redPx = 0, greenPx = 0, darkPx = 0, total = imgData.length / 4;
+            let redPx = 0, greenPx = 0, darkPx = 0, moldPx = 0, total = imgData.length / 4;
             
             let meanBrightness = 0;
             let sumBrightnessSq = 0;
 
             for (let i = 0; i < imgData.length; i += 4) {
                 const r = imgData[i], g = imgData[i+1], b = imgData[i+2];
-                const brightness = (r + g + b) / 3;
-                if (r > g + 30 && r > b + 30)  redPx++;
-                if (g > r + 20 && g > b + 10)  greenPx++;
-                if (brightness < 60)            darkPx++;
                 
+                // Red & Green
+                if (r > g * 1.1 && r > b * 1.1) redPx++;
+                if (g > r * 1.05 && g > b * 1.05) greenPx++;
+                
+                // Dark Spot (decay lesions / blemishes)
+                if (r < 70 && g < 70 && b < 70) darkPx++;
+                
+                // Mold (pale grayish fungal areas)
+                if (r > 160 && g > 160 && b > 140 && Math.abs(r - g) < 20 && Math.abs(g - b) < 30) moldPx++;
+                
+                const brightness = (r + g + b) / 3;
                 meanBrightness += brightness;
                 sumBrightnessSq += brightness * brightness;
             }
@@ -232,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 greenRatio:      parseFloat((greenPx / total).toFixed(4)),
                 redRatio:        parseFloat((redPx   / total).toFixed(4)),
                 darkSpotRatio:   parseFloat((darkPx  / total).toFixed(4)),
-                moldRatio:       0.00,
+                moldRatio:       parseFloat((moldPx  / total).toFixed(4)),
                 textureRoughness: parseFloat(calculatedRoughness.toFixed(4)),
                 // Pass the live MQTT values collected by the frontend WebSocket
                 sensor_temperature: liveSensor.temperature,
