@@ -1,0 +1,35 @@
+# Node.js
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.pkl
+*.egg-info/
+dist/
+build/
+.env
+.venv
+venv/
+
+# ML Models (large files)
+*.keras
+*.h5
+data/saved_models/*.pth
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

@@ -43,6 +43,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const printBatch = document.getElementById('print-batch');
     const printTime  = document.getElementById('print-time');
 
+    // Not-Tomato Modal elements
+    const notTomatoModal  = document.getElementById('not-tomato-modal');
+    const notTomatoCard   = document.getElementById('not-tomato-card');
+    const ntPreviewImg    = document.getElementById('nt-preview-img');
+    const ntRetryBtn      = document.getElementById('nt-retry-btn');
+
     let stream = null;
     let isProcessing = false;
     let snapshotDataUrl = '';
@@ -74,6 +80,57 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMsg.textContent = msg;
         errorMsg.classList.remove('hidden');
         setTimeout(() => errorMsg.classList.add('hidden'), 6000);
+    }
+
+    // ── Not-Tomato Detection ──
+    /**
+     * Checks whether the captured image contains a tomato by analyzing
+     * the ratio of tomato-colored pixels (red, orange-red, or green).
+     * Returns true if the image is likely a tomato, false otherwise.
+     */
+    function isTomato(imageData, totalPixels) {
+        let tomatoPx = 0;
+        for (let i = 0; i < imageData.length; i += 4) {
+            const r = imageData[i];
+            const g = imageData[i + 1];
+            const b = imageData[i + 2];
+
+            // Ripe red / orange-red tomato
+            const isRed    = r > 110 && r > g + 35 && r > b + 35;
+            // Unripe green tomato
+            const isGreen  = g > 90  && g > r + 20 && g > b + 10;
+            // Orange tomato (some varieties)
+            const isOrange = r > 160 && g > 80 && g < 160 && b < 80;
+
+            if (isRed || isGreen || isOrange) tomatoPx++;
+        }
+        // At least 15% of all pixels must be tomato-colored
+        return (tomatoPx / totalPixels) >= 0.15;
+    }
+
+    /**
+     * Shows the not-tomato warning modal with the captured image preview.
+     */
+    function showNotTomatoAlert(previewUrl) {
+        ntPreviewImg.src = previewUrl;
+        notTomatoModal.classList.remove('hidden');
+        // Trigger shake after card enter animation
+        setTimeout(() => {
+            notTomatoCard.classList.add('shake');
+            notTomatoCard.addEventListener('animationend', () => {
+                notTomatoCard.classList.remove('shake');
+            }, { once: true });
+        }, 380);
+        lucide.createIcons();
+    }
+
+    /**
+     * Hides the not-tomato modal and resets the scanner state.
+     */
+    function hideNotTomatoModal() {
+        notTomatoModal.classList.add('hidden');
+        ntPreviewImg.src = '';
+        resetScanner();
     }
 
     // ── Switch views ──
@@ -148,6 +205,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (brightness < 60)            darkPx++;
             }
 
+            // ── Layer 1: Frontend tomato pixel check ──
+            // Runs instantly before any API call.
+            if (!isTomato(imgData, total)) {
+                loadingOverlay.classList.add('hidden');
+                video.classList.remove('dimmed');
+                showNotTomatoAlert(snapshotDataUrl);
+                // Do NOT reset isProcessing here — modal's retry button handles it.
+                return;
+            }
+
             const payload = {
                 batchKey:        batchKeyInput.value.trim(),
                 greenRatio:      parseFloat((greenPx / total).toFixed(4)),
@@ -183,6 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok && data.success) {
                 populateReport(data, batchKeyInput.value.trim());
                 showReport();
+            } else if (data.not_tomato) {
+                // ── Layer 2: Backend not-tomato guard ──
+                showNotTomatoAlert(snapshotDataUrl);
             } else {
                 const errText = data.error || 'SYSTEM FAIL: Sensor or API unreachable.';
                 showError(errText);
@@ -334,6 +404,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showScan();
         resetScanner();
     });
+
+    // Not-tomato modal retry button
+    ntRetryBtn.addEventListener('click', hideNotTomatoModal);
 
     document.getElementById('reset-btn').addEventListener('click', () => {
         showScan();

@@ -25,8 +25,17 @@ def predict():
         data = request.json or {}
         batch_key = data.get('batchKey', 'unknown_batch')
         
-        # 1. Fetch live sensor data (or fallback to simulated sensors inside the engine)
-        sensor_data = engine.fetch_sensor_telemetry()
+        # 1. Check if frontend provided real-time telemetry from WebSocket
+        sensor_data = {
+            "temperature": data.get('sensor_temperature'),
+            "humidity": data.get('sensor_humidity'),
+            "eco2": data.get('sensor_eco2'),
+            "tvoc": data.get('sensor_tvoc') # if available
+        }
+        
+        # Fallback to internal engine fetching if frontend didn't provide it
+        if sensor_data["temperature"] is None:
+            sensor_data = engine.fetch_sensor_telemetry()
         
         # 2. Extract visual features (in a full system, you would run CNN on the uploaded image)
         # Here we accept optional simulated image features from frontend or default to fresh.
@@ -37,7 +46,16 @@ def predict():
         roughness = data.get('textureRoughness', 0.12)
         
         visual_features = [green_ratio, red_ratio, dark_spot, mold, roughness]
-        
+
+        # ── Not-Tomato Backend Guard ──
+        # If both red and green pixel ratios are negligible the image is unlikely a tomato.
+        if red_ratio < 0.05 and green_ratio < 0.05:
+            return jsonify({
+                "success": False,
+                "not_tomato": True,
+                "error": "Not a tomato: insufficient tomato-colored pixels detected in image."
+            })
+
         # 3. Run Fusion Model Inference
         result = engine.predict(sensor_data, visual_features=visual_features)
         

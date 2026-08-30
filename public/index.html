@@ -272,6 +272,50 @@
         </div>
     </div>
 
+    <!-- NOT-TOMATO WARNING MODAL -->
+    <div id="not-tomato-modal" class="not-tomato-modal hidden">
+        <div class="not-tomato-card" id="not-tomato-card">
+            <!-- Icon -->
+            <div class="nt-icon-wrap">
+                <i data-lucide="shield-alert"></i>
+            </div>
+
+            <!-- Tag -->
+            <div class="nt-tag">⚠ Detection Alert</div>
+
+            <!-- Title -->
+            <div class="nt-title">Not a Tomato Detected</div>
+
+            <!-- Subtitle -->
+            <div class="nt-subtitle">
+                The current batch image does not appear to contain a tomato.
+                Please re-position the camera and try again.
+            </div>
+
+            <!-- Captured image preview -->
+            <div class="nt-preview-wrap">
+                <img id="nt-preview-img" src="" alt="Captured image">
+                <div class="nt-preview-overlay">
+                    <span>UNRECOGNIZED OBJECT</span>
+                </div>
+            </div>
+
+            <div class="nt-divider"></div>
+
+            <!-- Hint -->
+            <div class="nt-hint">
+                Make sure the tomato fills the scan frame.<br>
+                Supported: red, green, or orange tomatoes.
+            </div>
+
+            <!-- Retry button -->
+            <button class="btn-nt-retry" id="nt-retry-btn">
+                <i data-lucide="refresh-cw"></i>
+                Try Again
+            </button>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

@@ -41,6 +41,21 @@ class handler(BaseHTTPRequestHandler):
         mold = body.get('moldRatio', 0.00)
         roughness = body.get('textureRoughness', 120.0)
 
+        # ── Not-Tomato Backend Guard ──
+        # If both red and green ratios are negligible, the image is very unlikely a tomato.
+        if red_ratio < 0.05 and green_ratio < 0.05:
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            error_payload = {
+                "success": False,
+                "not_tomato": True,
+                "error": "Not a tomato: insufficient tomato-colored pixels detected in image."
+            }
+            self.wfile.write(json.dumps(error_payload).encode('utf-8'))
+            return
+
         # Spoilage Index calculation from visual surface defects
         spoilage_index = min(100, max(0, int(dark_spot * 150 + mold * 200 + (roughness / 100.0) * 10)))
         freshness_score = max(0, min(100, 100 - spoilage_index))
