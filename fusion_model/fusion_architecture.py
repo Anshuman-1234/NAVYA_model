@@ -9,17 +9,17 @@ class ImageOnlyModel(nn.Module):
     def __init__(self, visual_in=5, num_classes=2):
         super(ImageOnlyModel, self).__init__()
         self.visual_encoder = nn.Sequential(
-            nn.Linear(visual_in, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(64, 128),
+            nn.Linear(visual_in, 128),
             nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU()
+            nn.GELU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 256),
+            nn.BatchNorm1d(256),
+            nn.GELU(),
+            nn.Linear(256, 128),
+            nn.GELU()
         )
-        self.classifier = nn.Linear(64, num_classes)
+        self.classifier = nn.Linear(128, num_classes)
 
     def forward(self, vis_x):
         feat = self.visual_encoder(vis_x)
@@ -34,16 +34,16 @@ class SensorOnlyModel(nn.Module):
     def __init__(self, in_features=4, num_classes=2):
         super(SensorOnlyModel, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(in_features, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(64, 128),
+            nn.Linear(in_features, 128),
             nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, num_classes)
+            nn.GELU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 256),
+            nn.BatchNorm1d(256),
+            nn.GELU(),
+            nn.Linear(256, 128),
+            nn.GELU(),
+            nn.Linear(128, num_classes)
         )
 
     def forward(self, x):
@@ -56,7 +56,7 @@ class GatedMultimodalFusionUnit(nn.Module):
     Allows the network to trust sensors when gas spikes occur (high TVOC/eCO2) or trust images
     when visual surface defects appear.
     """
-    def __init__(self, img_dim=64, sensor_dim=64, fused_dim=128):
+    def __init__(self, img_dim=128, sensor_dim=128, fused_dim=256):
         super(GatedMultimodalFusionUnit, self).__init__()
         self.proj_img = nn.Linear(img_dim, fused_dim)
         self.proj_sensor = nn.Linear(sensor_dim, fused_dim)
@@ -68,8 +68,8 @@ class GatedMultimodalFusionUnit(nn.Module):
         )
         
     def forward(self, img_emb, sensor_emb):
-        h_img = F.relu(self.proj_img(img_emb))
-        h_sensor = F.relu(self.proj_sensor(sensor_emb))
+        h_img = F.gelu(self.proj_img(img_emb))
+        h_sensor = F.gelu(self.proj_sensor(sensor_emb))
         
         concat_feat = torch.cat([h_img, h_sensor], dim=1)
         z = self.gate_net(concat_feat)  # Dynamic gating coefficient between 0 and 1
@@ -91,36 +91,38 @@ class MultimodalFusionModel(nn.Module):
         self.visual_encoder = nn.Sequential(
             nn.Linear(visual_in, 64),
             nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU()
+            nn.GELU(),
+            nn.Linear(64, 128),
+            nn.BatchNorm1d(128),
+            nn.GELU()
         )
         
         # 2. Sensor Feature Extractor
         self.sensor_encoder = nn.Sequential(
             nn.Linear(sensor_in, 64),
             nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU()
+            nn.GELU(),
+            nn.Linear(64, 128),
+            nn.BatchNorm1d(128),
+            nn.GELU()
         )
         
         # 3. Gated Fusion Unit
-        self.fusion_unit = GatedMultimodalFusionUnit(img_dim=64, sensor_dim=64, fused_dim=128)
+        self.fusion_unit = GatedMultimodalFusionUnit(img_dim=128, sensor_dim=128, fused_dim=256)
         
-        # 4. Joint Head Classifier & Regressor
+        # 4. Joint Head Classifier & Regressor (Residual processing)
         self.joint_dense = nn.Sequential(
-            nn.Linear(128 + 64 + 64, 128), # Fused + Vis + Sensor residual skip
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
+            nn.Linear(256 + 128 + 128, 256), # Fused + Vis + Sensor residual skip
+            nn.BatchNorm1d(256),
+            nn.GELU(),
             nn.Dropout(0.3),
-            nn.Linear(128, 64),
-            nn.ReLU()
+            nn.Linear(256, 128),
+            nn.GELU()
         )
         
         # Multi-task heads
-        self.classifier = nn.Linear(64, num_classes)
-        self.regressor = nn.Linear(64, 1)  # Remaining shelf life in days
+        self.classifier = nn.Linear(128, num_classes)
+        self.regressor = nn.Linear(128, 1)  # Remaining shelf life in days
 
     def forward(self, vis_x, sensor_x):
         # Extract visual embedding

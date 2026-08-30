@@ -82,7 +82,7 @@ def train_and_benchmark(data_path="data/multimodal_fruit_dataset.npz", save_dir=
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training models on device: {device}")
 
-    epochs = 5
+    epochs = 15 # Increased for higher accuracy
     criterion = nn.CrossEntropyLoss()
 
     # -------------------------------------------------------------
@@ -90,7 +90,8 @@ def train_and_benchmark(data_path="data/multimodal_fruit_dataset.npz", save_dir=
     # -------------------------------------------------------------
     print("\n--- Training Image-Only Model ---")
     img_model = ImageOnlyModel(visual_in=5, num_classes=2).to(device)
-    optimizer = torch.optim.AdamW(img_model.parameters(), lr=1e-3, weight_decay=1e-4)
+    optimizer = torch.optim.AdamW(img_model.parameters(), lr=2e-3, weight_decay=1e-3)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     img_train_loss, img_val_loss = [], []
     img_train_acc, img_val_acc = [], []
@@ -100,13 +101,18 @@ def train_and_benchmark(data_path="data/multimodal_fruit_dataset.npz", save_dir=
         t_loss, t_correct = 0.0, 0
         for vis, _, lbls, _ in train_loader:
             vis, lbls = vis.to(device), lbls.to(device)
+            # Data Augmentation: Tiny Gaussian Noise for robust training
+            vis_noisy = vis + torch.randn_like(vis) * 0.02
+            
             optimizer.zero_grad()
-            out = img_model(vis)
+            out = img_model(vis_noisy)
             loss = criterion(out, lbls)
             loss.backward()
             optimizer.step()
             t_loss += loss.item() * len(lbls)
             t_correct += (out.argmax(dim=1) == lbls).sum().item()
+            
+        scheduler.step()
 
         img_model.eval()
         v_loss, v_correct = 0.0, 0
@@ -160,7 +166,8 @@ def train_and_benchmark(data_path="data/multimodal_fruit_dataset.npz", save_dir=
     # -------------------------------------------------------------
     print("\n--- Training Sensor-Only Model ---")
     sns_model = SensorOnlyModel(in_features=4, num_classes=2).to(device)
-    optimizer = torch.optim.AdamW(sns_model.parameters(), lr=1e-3, weight_decay=1e-4)
+    optimizer = torch.optim.AdamW(sns_model.parameters(), lr=2e-3, weight_decay=1e-3)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     sns_train_loss, sns_val_loss = [], []
     sns_train_acc, sns_val_acc = [], []
@@ -170,13 +177,18 @@ def train_and_benchmark(data_path="data/multimodal_fruit_dataset.npz", save_dir=
         t_loss, t_correct = 0.0, 0
         for _, sns, lbls, _ in train_loader:
             sns, lbls = sns.to(device), lbls.to(device)
+            # Data Augmentation: Tiny Gaussian Noise
+            sns_noisy = sns + torch.randn_like(sns) * 0.02
+            
             optimizer.zero_grad()
-            out = sns_model(sns)
+            out = sns_model(sns_noisy)
             loss = criterion(out, lbls)
             loss.backward()
             optimizer.step()
             t_loss += loss.item() * len(lbls)
             t_correct += (out.argmax(dim=1) == lbls).sum().item()
+            
+        scheduler.step()
 
         sns_model.eval()
         v_loss, v_correct = 0.0, 0
@@ -225,7 +237,8 @@ def train_and_benchmark(data_path="data/multimodal_fruit_dataset.npz", save_dir=
     # -------------------------------------------------------------
     print("\n--- Training Multimodal Fusion Model ---")
     fusion_model = MultimodalFusionModel(visual_in=5, sensor_in=4, num_classes=2).to(device)
-    optimizer = torch.optim.AdamW(fusion_model.parameters(), lr=1e-3, weight_decay=1e-4)
+    optimizer = torch.optim.AdamW(fusion_model.parameters(), lr=2e-3, weight_decay=1e-3)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     reg_criterion = nn.MSELoss()
 
     fus_train_loss, fus_val_loss = [], []
@@ -236,8 +249,13 @@ def train_and_benchmark(data_path="data/multimodal_fruit_dataset.npz", save_dir=
         t_loss, t_correct = 0.0, 0
         for vis, sns, lbls, slife in train_loader:
             vis, sns, lbls, slife = vis.to(device), sns.to(device), lbls.to(device), slife.to(device)
+            
+            # Multi-modal Data Augmentation
+            vis_noisy = vis + torch.randn_like(vis) * 0.02
+            sns_noisy = sns + torch.randn_like(sns) * 0.02
+            
             optimizer.zero_grad()
-            logits, sl_pred, _ = fusion_model(vis, sns)
+            logits, sl_pred, _ = fusion_model(vis_noisy, sns_noisy)
             loss_clf = criterion(logits, lbls)
             loss_reg = reg_criterion(sl_pred, slife)
             total_loss = loss_clf + 0.2 * loss_reg
@@ -246,6 +264,8 @@ def train_and_benchmark(data_path="data/multimodal_fruit_dataset.npz", save_dir=
 
             t_loss += total_loss.item() * len(lbls)
             t_correct += (logits.argmax(dim=1) == lbls).sum().item()
+            
+        scheduler.step()
 
         fusion_model.eval()
         v_loss, v_correct = 0.0, 0
