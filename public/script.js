@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         controlsArea.classList.add('hidden');
         countdownOverlay.classList.remove('hidden');
 
-        let count = 3;
+        let count = 1; // Faster countdown
         countdownText.textContent = count;
 
         const timer = setInterval(() => {
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 countdownOverlay.classList.add('hidden');
                 captureAndAnalyze();
             }
-        }, 1000);
+        }, 500); // Trigger quickly
     });
 
     // ── Capture + Analyze ──
@@ -196,6 +196,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const ctx = canvas.getContext('2d');
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
             let redPx = 0, greenPx = 0, darkPx = 0, total = imgData.length / 4;
+            
+            let meanBrightness = 0;
+            let sumBrightnessSq = 0;
 
             for (let i = 0; i < imgData.length; i += 4) {
                 const r = imgData[i], g = imgData[i+1], b = imgData[i+2];
@@ -203,7 +206,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (r > g + 30 && r > b + 30)  redPx++;
                 if (g > r + 20 && g > b + 10)  greenPx++;
                 if (brightness < 60)            darkPx++;
+                
+                meanBrightness += brightness;
+                sumBrightnessSq += brightness * brightness;
             }
+            
+            // Calculate true texture roughness (std deviation of brightness / 255)
+            meanBrightness /= total;
+            const variance = (sumBrightnessSq / total) - (meanBrightness * meanBrightness);
+            const stdBrightness = Math.sqrt(Math.max(0, variance));
+            const calculatedRoughness = stdBrightness / 255.0;
 
             // ── Layer 1: Frontend tomato pixel check ──
             // Runs instantly before any API call.
@@ -221,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 redRatio:        parseFloat((redPx   / total).toFixed(4)),
                 darkSpotRatio:   parseFloat((darkPx  / total).toFixed(4)),
                 moldRatio:       0.00,
-                textureRoughness: 110.0,
+                textureRoughness: parseFloat(calculatedRoughness.toFixed(4)),
                 // Pass the live MQTT values collected by the frontend WebSocket
                 sensor_temperature: liveSensor.temperature,
                 sensor_humidity:    liveSensor.humidity,
