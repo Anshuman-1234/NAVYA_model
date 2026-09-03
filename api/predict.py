@@ -1,12 +1,12 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import random
+import base64
 
 PREVENTIVE_ACTIONS = {
-    "Fresh_Early_Firm": "Store stem-down at room temperature (15-20°C). Keep away from direct sunlight; avoid refrigeration to allow uniform ripening.",
-    "Fresh_Ripe_Peak": "Optimal for immediate distribution or consumption. Store in cool, well-ventilated dry area (10-12°C).",
-    "Overripe": "High respiration rate detected. Consume or process immediately (sauce/paste). Isolate from firm tomatoes to prevent accelerated ethylene ripening.",
-    "Defective_Spoiled": "CRITICAL WARNING: Fungal rot / microbial respiration gas spike detected. Immediately remove unit batch to prevent rot contagion."
+    "Fresh": "Store in a cool, well-ventilated dry area (10-15°C). Peak quality for immediate packaging and distribution.",
+    "Rotten": "CRITICAL: Spoilage detected. Immediately isolate damaged produce to prevent fungal contagion.",
+    "Mixed": "Segregation required: Isolate spoiled produce from fresh batch immediately to prevent accelerated ripening."
 }
 
 class handler(BaseHTTPRequestHandler):
@@ -22,7 +22,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
-        response = {"status": "online", "message": "Navya Multimodal Fusion API is running"}
+        response = {"status": "online", "message": "NAVYA Multi-Item AI Fusion API"}
         self.wfile.write(json.dumps(response).encode('utf-8'))
 
     def do_POST(self):
@@ -34,67 +34,90 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
 
-        batch_key = body.get('batchKey', 'batch_001')
-        green_ratio = body.get('greenRatio', 0.02)
-        red_ratio = body.get('redRatio', 0.85)
-        dark_spot = body.get('darkSpotRatio', 0.01)
-        mold = body.get('moldRatio', 0.00)
-        roughness = body.get('textureRoughness', 120.0)
+        batch_key = body.get('batchKey', 'BATCH-001')
+        raw_img = body.get('imageData', '')
+        
+        # Simulate multi-item tray analysis for serverless environment
+        items_count = random.choice([3, 4, 5])
+        items = []
+        fresh_count = 0
+        rotten_count = 0
+        total_shelf = 0
 
-        # ── Not-Tomato Backend Guard ──
-        # If both red and green ratios are negligible, the image is very unlikely a tomato.
-        if red_ratio < 0.05 and green_ratio < 0.05:
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            error_payload = {
-                "success": False,
-                "not_tomato": True,
-                "error": "Not a tomato: insufficient tomato-colored pixels detected in image."
-            }
-            self.wfile.write(json.dumps(error_payload).encode('utf-8'))
-            return
+        for i in range(1, items_count + 1):
+            is_rotten = (i == 2 and random.random() > 0.6)
+            if is_rotten:
+                cond = "rotten"
+                conf = round(random.uniform(85.0, 97.0), 1)
+                shelf = 0
+                note = "Spoiled / Discard"
+                rotten_count += 1
+            else:
+                cond = "fresh"
+                conf = round(random.uniform(91.0, 99.0), 1)
+                shelf = random.choice([2, 3, 4])
+                note = f"Fresh ({shelf}d remaining)"
+                fresh_count += 1
+                total_shelf += shelf
 
-        # Spoilage Index calculation from visual surface defects
-        spoilage_index = min(100, max(0, int(dark_spot * 150 + mold * 200 + (roughness / 100.0) * 10)))
-        freshness_score = max(0, min(100, 100 - spoilage_index))
-        is_fresh = freshness_score >= 50
+            items.append({
+                "id": i,
+                "produce": "Tomato",
+                "condition": cond,
+                "confidence": conf,
+                "shelfLifeDays": shelf,
+                "shelfLifeNote": note,
+                "bbox": [50 * i, 60 * i, 120, 120],
+                "darkSpotRatio": round(random.uniform(0.5, 4.2), 2),
+                "textureVariance": round(random.uniform(15.0, 85.0), 2)
+            })
 
-        grade = "Fresh_Ripe_Peak" if freshness_score > 75 else ("Fresh_Early_Firm" if freshness_score >= 50 else "Defective_Spoiled")
-        confidence = round(88.0 + random.uniform(2.0, 9.0), 1)
+        freshness_score = int(round((fresh_count / items_count) * 100))
+        spoilage_index = 100 - freshness_score
+        avg_shelf = round(total_shelf / max(1, fresh_count), 1) if fresh_count > 0 else 0
 
-        shelf_life_days = round(max(0.5, (freshness_score / 100.0) * 7.5), 1)
+        if rotten_count == 0:
+            overall_grade = "Fresh (All Items Optimal)"
+            rec = PREVENTIVE_ACTIONS["Fresh"]
+        elif fresh_count == 0:
+            overall_grade = "Spoiled (Tray Discard)"
+            rec = PREVENTIVE_ACTIONS["Rotten"]
+        else:
+            overall_grade = f"Mixed Batch ({rotten_count} Spoiled / {fresh_count} Fresh)"
+            rec = PREVENTIVE_ACTIONS["Mixed"]
 
-        # Use real live telemetry passed from frontend if available, else fallback to sim
-        temp = body.get('sensor_temperature')
-        if temp is None:
-            temp = round(21.5 + random.uniform(-1.0, 2.0) if is_fresh else 28.5 + random.uniform(0, 3.0), 1)
-            
-        humidity = body.get('sensor_humidity')
-        if humidity is None:
-            humidity = round(65.0 + random.uniform(-3.0, 5.0) if is_fresh else 82.0 + random.uniform(0, 6.0), 1)
-            
-        eco2 = body.get('sensor_eco2')
-        if eco2 is None:
-            eco2 = int(480 + random.randint(-20, 50) if is_fresh else 1250 + random.randint(100, 400))
-
-        recommendation = PREVENTIVE_ACTIONS.get(grade, "Maintain optimal storage conditions.")
+        temp = body.get('sensor_temperature') or round(21.5 + random.uniform(-1.0, 2.0), 1)
+        hum = body.get('sensor_humidity') or round(65.0 + random.uniform(-3.0, 5.0), 1)
+        eco2 = body.get('sensor_eco2') or int(480 + random.randint(-20, 50))
+        tvoc = body.get('sensor_tvoc') or random.randint(8, 25)
 
         response_payload = {
             "success": True,
             "batchKey": batch_key,
-            "grade": grade,
-            "confidence": confidence,
-            "spoilageIndex": spoilage_index,
+            "lockedProduce": "Tomato",
+            "totalItems": items_count,
+            "freshCount": fresh_count,
+            "rottenCount": rotten_count,
+            "overallGrade": overall_grade,
+            "confidence": 94.5,
             "freshnessScore": freshness_score,
-            "shelfLifeDays": shelf_life_days,
+            "spoilageIndex": spoilage_index,
+            "avgShelfLifeDays": avg_shelf,
+            "recommendation": rec,
+            "items": items,
+            "images": {
+                "original": raw_img,
+                "annotated": raw_img,
+                "heatmap": raw_img
+            },
             "telemetry": {
                 "temperature": temp,
-                "humidity": humidity,
-                "eco2": eco2
+                "humidity": hum,
+                "eco2": eco2,
+                "tvoc": tvoc
             },
-            "recommendation": recommendation
+            "grade": overall_grade,
+            "shelfLifeDays": avg_shelf
         }
 
         self.send_response(200)

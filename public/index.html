@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NAVYA — Tomato Quality Scanner</title>
-    <meta name="description" content="NAVYA AI-powered multimodal tomato quality scanner using image analysis and real-time sensor fusion.">
+    <title>NAVYA — AI Tomato Quality Scanner</title>
+    <meta name="description" content="NAVYA AI-powered multimodal tomato quality scanner with Watershed multi-item tray detection and Grad-CAM decay heatmaps.">
     <link rel="stylesheet" href="style.css">
     <!-- Google Fonts for typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -23,7 +23,7 @@
                 <div class="logo-dot"></div>
                 <span>NAVYA</span>
             </div>
-            <div class="header-badge">AI Scanner</div>
+            <div class="header-badge">Tomato AI Scanner</div>
         </header>
 
         <div id="error-msg" class="error-msg hidden"></div>
@@ -38,17 +38,18 @@
             </div>
         </div>
 
-        <!-- Camera -->
+        <!-- Camera / Viewport -->
         <div class="camera-viewport">
             <video id="camera-feed" autoplay playsinline muted></video>
             <canvas id="snapshot-canvas" style="display:none;"></canvas>
+            
             <div class="scan-frame">
                 <div class="corner tl"></div>
                 <div class="corner tr"></div>
                 <div class="corner bl"></div>
                 <div class="corner br"></div>
             </div>
-            <div class="scan-label">Point at tomato</div>
+            <div class="scan-label">Point Camera at Tomatoes / Tray</div>
 
             <!-- Countdown -->
             <div id="countdown-overlay" class="countdown-overlay hidden">
@@ -61,23 +62,32 @@
             <div id="loading-overlay" class="loading-overlay hidden">
                 <div class="pulse-ring"></div>
                 <i data-lucide="cpu" class="loading-icon"></i>
-                <div class="loading-text">AI ANALYSIS IN PROGRESS</div>
-                <div class="loading-sub">Fusion Model · Sensor Data · Visual Features</div>
+                <div class="loading-text">AI TOMATO QUALITY ANALYSIS</div>
+                <div class="loading-sub">Watershed Itemization · Keras Model · Grad-CAM Heatmap</div>
             </div>
         </div>
 
         <!-- Controls -->
         <div id="controls-area" class="controls-area">
-            <div class="input-group">
-                <label for="batch-key">
-                    <i data-lucide="tag" style="width:13px;"></i>
-                    BATCH ID
-                </label>
-                <input type="text" id="batch-key" value="BATCH-001" placeholder="e.g. BATCH-001" autocomplete="off">
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="batch-key">
+                        <i data-lucide="tag" style="width:13px;"></i>
+                        BATCH ID
+                    </label>
+                    <input type="text" id="batch-key" value="TOMATO-BATCH-001" placeholder="e.g. TOMATO-001" autocomplete="off">
+                </div>
+                <div class="upload-btn-wrap">
+                    <input type="file" id="file-input" accept="image/*" style="display:none;">
+                    <button id="upload-file-btn" class="btn-secondary" title="Upload Image / Test Sample">
+                        <i data-lucide="upload" style="width:16px;"></i>
+                        Upload
+                    </button>
+                </div>
             </div>
             <button id="start-btn" class="btn-scan">
                 <i data-lucide="scan" style="width:20px;"></i>
-                START SCAN
+                SCAN TOMATOES / TRAY
             </button>
         </div>
     </div>
@@ -86,7 +96,7 @@
     <div id="report-view" class="view hidden">
         <!-- Print header (only visible on print) -->
         <div class="print-header">
-            <div class="print-logo">NAVYA <span>Quality Analysis Report</span></div>
+            <div class="print-logo">NAVYA <span>Tomato Quality & Itemization Report</span></div>
             <div id="print-batch" class="print-batch"></div>
             <div id="print-time" class="print-time"></div>
         </div>
@@ -96,10 +106,13 @@
 
             <!-- Top bar -->
             <div class="report-topbar no-print">
-                <button id="back-btn" class="icon-btn">
+                <button id="back-btn" class="icon-btn" title="Back to Scanner">
                     <i data-lucide="arrow-left"></i>
                 </button>
-                <div class="report-title">Analysis Report</div>
+                <div class="report-title-group">
+                    <div class="report-title">Tomato Report</div>
+                    <span id="produce-pill" class="produce-pill">🍅 TOMATO</span>
+                </div>
                 <div class="report-actions-top">
                     <button id="print-pdf-btn" class="icon-btn" title="Print PDF">
                         <i data-lucide="printer"></i>
@@ -113,38 +126,71 @@
             <!-- Status Banner -->
             <div id="status-banner" class="status-banner">
                 <div class="status-icon-wrap">
-                    <i id="status-icon" data-lucide="check-circle" style="width:28px;height:28px;"></i>
+                    <i id="status-icon" data-lucide="check-circle" style="width:30px;height:30px;"></i>
                 </div>
-                <div>
-                    <div id="grade-text" class="grade-text">--</div>
-                    <div class="status-sub">AI Multimodal Fusion Result</div>
+                <div class="status-content">
+                    <div id="grade-text" class="grade-text">Fresh (All Tomatoes Optimal)</div>
+                    <div class="status-meta">
+                        <span id="items-count-badge" class="badge-mini">3 Tomatoes</span>
+                        <span id="fresh-count-badge" class="badge-mini badge-green">3 Fresh</span>
+                        <span id="rotten-count-badge" class="badge-mini badge-red hidden">0 Rotten</span>
+                    </div>
                 </div>
                 <div class="confidence-badge">
-                    <span id="confidence-val">--</span>% Confidence
+                    <span id="confidence-val">98</span>% Conf
                 </div>
             </div>
 
-            <!-- Captured Image -->
-            <div class="section-card">
-                <div class="section-title">
-                    <i data-lucide="image" style="width:15px;color:#16A34A;"></i>
-                    CAPTURED IMAGE
+            <!-- 3-View Multi-View Gallery -->
+            <div class="section-card gallery-card">
+                <div class="gallery-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i data-lucide="eye" style="width:15px;color:#16A34A;"></i>
+                        AI VISION OUTPUT (3 VIEWS)
+                    </div>
+                    <!-- View Selector Tabs -->
+                    <div class="view-tabs">
+                        <button class="view-tab active" data-view="annotated">
+                            <i data-lucide="box-select" style="width:13px;"></i> Detections
+                        </button>
+                        <button class="view-tab" data-view="heatmap">
+                            <i data-lucide="flame" style="width:13px;"></i> Grad-CAM
+                        </button>
+                        <button class="view-tab" data-view="original">
+                            <i data-lucide="image" style="width:13px;"></i> Original
+                        </button>
+                    </div>
                 </div>
+
+                <!-- Main Displayed Image -->
                 <div class="captured-img-wrap">
-                    <img id="captured-img" class="captured-img" src="" alt="Captured tomato image">
-                    <div id="img-badge" class="img-badge">SCAN CAPTURE</div>
+                    <img id="captured-img" class="captured-img" src="" alt="Tomato Analysis View">
+                    <div id="img-badge" class="img-badge">ITEMIZED DETECTIONS</div>
                 </div>
+                
                 <div class="img-meta">
-                    <span id="img-batch-label">--</span>
+                    <span id="img-batch-label">Batch: TOMATO-BATCH-001</span>
+                    <span id="img-view-hint">Watershed Bounding Boxes & Confidence</span>
                     <span id="img-timestamp">--</span>
                 </div>
             </div>
 
-            <!-- Key Metrics -->
+            <!-- Itemized Tray Breakdown Section -->
+            <div class="section-card">
+                <div class="section-title">
+                    <i data-lucide="layers" style="width:15px;color:#3B82F6;"></i>
+                    ITEMIZED TOMATO BREAKDOWN
+                </div>
+                <div id="items-list" class="items-list">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Key Quality Metrics -->
             <div class="section-card">
                 <div class="section-title">
                     <i data-lucide="bar-chart-2" style="width:15px;color:#16A34A;"></i>
-                    QUALITY METRICS
+                    QUALITY METRICS & SHELF LIFE
                 </div>
                 <div class="metrics-grid">
                     <div class="metric-item">
@@ -158,7 +204,7 @@
                         <div class="metric-unit">/ 100</div>
                     </div>
                     <div class="metric-item shelf-span">
-                        <div class="metric-label">Remaining Shelf Life</div>
+                        <div class="metric-label">Average Remaining Shelf Life</div>
                         <div class="shelf-life-row">
                             <span id="shelf-life" class="metric-value shelf">--</span>
                             <span class="metric-unit-large">days</span>
@@ -246,7 +292,7 @@
             <div id="rec-card" class="section-card rec-card">
                 <div class="section-title">
                     <i data-lucide="clipboard-list" style="width:15px;color:#16A34A;"></i>
-                    RECOMMENDATION
+                    AI PREVENTIVE RECOMMENDATION
                 </div>
                 <p id="rec-text" class="rec-text">--</p>
             </div>
@@ -261,12 +307,12 @@
                 </button>
             </div>
             <button id="reset-btn" class="btn-outline no-print">
-                <i data-lucide="refresh-cw" style="width:14px;"></i> Scan Another
+                <i data-lucide="refresh-cw" style="width:14px;"></i> Scan Another Tray
             </button>
 
             <!-- Print Footer -->
             <div class="print-footer">
-                <p>Generated by NAVYA Multimodal AI Fusion System · navya-model.vercel.app</p>
+                <p>Generated by NAVYA AI Multimodal Tomato Quality & Itemization System</p>
             </div>
 
         </div>
@@ -275,40 +321,30 @@
     <!-- NOT-TOMATO WARNING MODAL -->
     <div id="not-tomato-modal" class="not-tomato-modal hidden">
         <div class="not-tomato-card" id="not-tomato-card">
-            <!-- Icon -->
             <div class="nt-icon-wrap">
                 <i data-lucide="shield-alert"></i>
             </div>
-
-            <!-- Tag -->
-            <div class="nt-tag">⚠ Detection Alert</div>
-
-            <!-- Title -->
-            <div class="nt-title">Not a Tomato Detected</div>
-
-            <!-- Subtitle -->
-            <div class="nt-subtitle">
-                The current batch image does not appear to contain a tomato.
-                Please re-position the camera and try again.
+            <div class="nt-tag">Detection Alert</div>
+            <div class="nt-title" id="nt-title">Not a Tomato Detected</div>
+            <div class="nt-subtitle" id="nt-subtitle">
+                The current image does not appear to contain a tomato.
             </div>
-
-            <!-- Captured image preview -->
+            <div id="nt-diag-badge" class="nt-diag-badge hidden">
+                <span id="nt-diag-text">Insufficient tomato pixels</span>
+            </div>
             <div class="nt-preview-wrap">
                 <img id="nt-preview-img" src="" alt="Captured image">
                 <div class="nt-preview-overlay">
-                    <span>UNRECOGNIZED OBJECT</span>
+                    <span>NON-TOMATO TARGET</span>
                 </div>
             </div>
-
             <div class="nt-divider"></div>
-
-            <!-- Hint -->
             <div class="nt-hint">
-                Make sure the tomato fills the scan frame.<br>
-                Supported: red, green, or orange tomatoes.
+                <strong>Tips:</strong><br>
+                • Position tomatoes clearly inside the scan frame<br>
+                • Supported: Ripe red, orange, or green tomatoes<br>
+                • Avoid pointing the camera at faces, walls, or non-tomato objects
             </div>
-
-            <!-- Retry button -->
             <button class="btn-nt-retry" id="nt-retry-btn">
                 <i data-lucide="refresh-cw"></i>
                 Try Again

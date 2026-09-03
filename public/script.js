@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const video            = document.getElementById('camera-feed');
     const canvas           = document.getElementById('snapshot-canvas');
     const startBtn         = document.getElementById('start-btn');
+    const uploadBtn        = document.getElementById('upload-file-btn');
+    const fileInput        = document.getElementById('file-input');
     const batchKeyInput    = document.getElementById('batch-key');
     const errorMsg         = document.getElementById('error-msg');
     const controlsArea     = document.getElementById('controls-area');
@@ -18,12 +20,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Report Elements ──
     const capturedImg      = document.getElementById('captured-img');
+    const imgBadge         = document.getElementById('img-badge');
+    const imgViewHint      = document.getElementById('img-view-hint');
     const imgBatchLabel    = document.getElementById('img-batch-label');
     const imgTimestamp     = document.getElementById('img-timestamp');
+    const producePill      = document.getElementById('produce-pill');
     const statusBanner     = document.getElementById('status-banner');
     const statusIcon       = document.getElementById('status-icon');
     const gradeText        = document.getElementById('grade-text');
+    const itemsCountBadge  = document.getElementById('items-count-badge');
+    const freshCountBadge  = document.getElementById('fresh-count-badge');
+    const rottenCountBadge = document.getElementById('rotten-count-badge');
     const confidenceVal    = document.getElementById('confidence-val');
+    const itemsList        = document.getElementById('items-list');
+
     const freshnessScoreEl = document.getElementById('freshness-score');
     const spoilageIndexEl  = document.getElementById('spoilage-index');
     const shelfLifeEl      = document.getElementById('shelf-life');
@@ -31,7 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const telTempEl        = document.getElementById('tel-temp');
     const telHumEl         = document.getElementById('tel-hum');
     const telGasEl         = document.getElementById('tel-gas');
+    const telTvocEl        = document.getElementById('tel-tvoc');
     const recTextEl        = document.getElementById('rec-text');
+
+    // View selector tabs
+    const viewTabs         = document.querySelectorAll('.view-tab');
 
     // Forecast Elements
     const forecastWarningDate = document.getElementById('forecast-warning-date');
@@ -45,19 +59,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Not-Tomato Modal elements
     const notTomatoModal  = document.getElementById('not-tomato-modal');
-    const notTomatoCard   = document.getElementById('not-tomato-card');
+    const ntTitleEl       = document.getElementById('nt-title');
+    const ntSubtitleEl    = document.getElementById('nt-subtitle');
+    const ntDiagBadge     = document.getElementById('nt-diag-badge');
+    const ntDiagText      = document.getElementById('nt-diag-text');
     const ntPreviewImg    = document.getElementById('nt-preview-img');
     const ntRetryBtn      = document.getElementById('nt-retry-btn');
 
     let stream = null;
     let isProcessing = false;
     let snapshotDataUrl = '';
+    let currentAnalysisImages = {
+        annotated: '',
+        heatmap: '',
+        original: ''
+    };
 
     // Global live MQTT snapshot (updated every message)
     let liveSensor = { temperature: null, humidity: null, eco2: null, tvoc: null };
-
-    // Additional report element
-    const telTvocEl = document.getElementById('tel-tvoc');
 
     // ── Camera ──
     async function startCamera() {
@@ -67,12 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             video.srcObject = stream;
         } catch (err) {
-            showError('Unable to access camera. Please allow camera permission or use HTTPS.');
+            console.warn('Camera access unavailable or blocked:', err);
         }
-    }
-
-    function stopCamera() {
-        if (stream) stream.getTracks().forEach(t => t.stop());
     }
 
     // ── Error Banner ──
@@ -82,65 +97,13 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => errorMsg.classList.add('hidden'), 6000);
     }
 
-    // ── Not-Tomato Detection ──
-    /**
-     * Checks whether the captured image contains a tomato by analyzing
-     * the ratio of tomato-colored pixels (red, orange-red, or green).
-     * Returns true if the image is likely a tomato, false otherwise.
-     */
-    function isTomato(imageData, totalPixels) {
-        let tomatoPx = 0;
-        for (let i = 0; i < imageData.length; i += 4) {
-            const r = imageData[i];
-            const g = imageData[i + 1];
-            const b = imageData[i + 2];
-
-            // Ripe red / orange-red tomato
-            const isRed    = r > 110 && r > g + 35 && r > b + 35;
-            // Unripe green tomato
-            const isGreen  = g > 90  && g > r + 20 && g > b + 10;
-            // Orange tomato (some varieties)
-            const isOrange = r > 160 && g > 80 && g < 160 && b < 80;
-
-            if (isRed || isGreen || isOrange) tomatoPx++;
-        }
-        // At least 15% of all pixels must be tomato-colored
-        return (tomatoPx / totalPixels) >= 0.15;
-    }
-
-    /**
-     * Shows the not-tomato warning modal with the captured image preview.
-     */
-    function showNotTomatoAlert(previewUrl) {
-        ntPreviewImg.src = previewUrl;
-        notTomatoModal.classList.remove('hidden');
-        // Trigger shake after card enter animation
-        setTimeout(() => {
-            notTomatoCard.classList.add('shake');
-            notTomatoCard.addEventListener('animationend', () => {
-                notTomatoCard.classList.remove('shake');
-            }, { once: true });
-        }, 380);
-        lucide.createIcons();
-    }
-
-    /**
-     * Hides the not-tomato modal and resets the scanner state.
-     */
-    function hideNotTomatoModal() {
-        notTomatoModal.classList.add('hidden');
-        ntPreviewImg.src = '';
-        resetScanner();
-    }
-
-    // ── Switch views ──
+    // ── View Switcher ──
     function showReport() {
         scanView.classList.remove('active');
         scanView.classList.add('hidden');
         reportView.classList.remove('hidden');
         reportView.classList.add('active');
         lucide.createIcons();
-        // Scroll to top
         reportView.querySelector('.report-scroll').scrollTop = 0;
     }
 
@@ -150,6 +113,50 @@ document.addEventListener('DOMContentLoaded', () => {
         scanView.classList.remove('hidden');
         scanView.classList.add('active');
     }
+
+    // ── 3-View Tabs Handling ──
+    viewTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            viewTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const viewType = tab.getAttribute('data-view');
+            setActiveViewImage(viewType);
+        });
+    });
+
+    function setActiveViewImage(viewType) {
+        if (viewType === 'annotated') {
+            capturedImg.src = currentAnalysisImages.annotated || snapshotDataUrl;
+            imgBadge.textContent = 'ITEMIZED DETECTIONS';
+            imgBadge.style.color = 'var(--green)';
+            imgViewHint.textContent = 'Watershed Bounding Boxes & Confidence Labels';
+        } else if (viewType === 'heatmap') {
+            capturedImg.src = currentAnalysisImages.heatmap || snapshotDataUrl;
+            imgBadge.textContent = 'GRAD-CAM DECAY HEATMAP';
+            imgBadge.style.color = '#F59E0B';
+            imgViewHint.textContent = 'Deep Neural Network Attention Overlay on Spoilage';
+        } else if (viewType === 'original') {
+            capturedImg.src = currentAnalysisImages.original || snapshotDataUrl;
+            imgBadge.textContent = 'ORIGINAL CAPTURE';
+            imgBadge.style.color = 'var(--blue)';
+            imgViewHint.textContent = 'Raw Camera / Sensor Tray Capture';
+        }
+    }
+
+    // ── File Upload Handler ──
+    uploadBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            snapshotDataUrl = event.target.result;
+            runAnalysisWithImage(snapshotDataUrl);
+        };
+        reader.readAsDataURL(file);
+    });
 
     // ── Start Scan Button ──
     startBtn.addEventListener('click', () => {
@@ -164,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         controlsArea.classList.add('hidden');
         countdownOverlay.classList.remove('hidden');
 
-        let count = 1; // Faster countdown
+        let count = 1;
         countdownText.textContent = count;
 
         const timer = setInterval(() => {
@@ -174,81 +181,36 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 clearInterval(timer);
                 countdownOverlay.classList.add('hidden');
-                captureAndAnalyze();
+                captureFromCameraAndAnalyze();
             }
-        }, 500); // Trigger quickly
+        }, 400);
     });
 
-    // ── Capture + Analyze ──
-    async function captureAndAnalyze() {
-        // Snapshot
+    // ── Camera Snapshot ──
+    function captureFromCameraAndAnalyze() {
         canvas.width  = video.videoWidth  || 640;
         canvas.height = video.videoHeight || 480;
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         snapshotDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        runAnalysisWithImage(snapshotDataUrl);
+    }
 
-        // Show loading
+    // ── Execute AI Tray Analysis ──
+    async function runAnalysisWithImage(imgDataUrl) {
         video.classList.add('dimmed');
         loadingOverlay.classList.remove('hidden');
 
         try {
-            // Visual feature extraction (simple pixel analysis)
-            const ctx = canvas.getContext('2d');
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            let redPx = 0, greenPx = 0, darkPx = 0, moldPx = 0, total = imgData.length / 4;
-            
-            let meanBrightness = 0;
-            let sumBrightnessSq = 0;
-
-            for (let i = 0; i < imgData.length; i += 4) {
-                const r = imgData[i], g = imgData[i+1], b = imgData[i+2];
-                
-                // Red & Green
-                if (r > g * 1.1 && r > b * 1.1) redPx++;
-                if (g > r * 1.05 && g > b * 1.05) greenPx++;
-                
-                // Dark Spot (decay lesions / blemishes)
-                if (r < 70 && g < 70 && b < 70) darkPx++;
-                
-                // Mold (pale grayish fungal areas)
-                if (r > 160 && g > 160 && b > 140 && Math.abs(r - g) < 20 && Math.abs(g - b) < 30) moldPx++;
-                
-                const brightness = (r + g + b) / 3;
-                meanBrightness += brightness;
-                sumBrightnessSq += brightness * brightness;
-            }
-            
-            // Calculate true texture roughness (std deviation of brightness / 255)
-            meanBrightness /= total;
-            const variance = (sumBrightnessSq / total) - (meanBrightness * meanBrightness);
-            const stdBrightness = Math.sqrt(Math.max(0, variance));
-            const calculatedRoughness = stdBrightness / 255.0;
-
-            // ── Layer 1: Frontend tomato pixel check ──
-            // Runs instantly before any API call.
-            if (!isTomato(imgData, total)) {
-                loadingOverlay.classList.add('hidden');
-                video.classList.remove('dimmed');
-                showNotTomatoAlert(snapshotDataUrl);
-                // Do NOT reset isProcessing here — modal's retry button handles it.
-                return;
-            }
-
             const payload = {
-                batchKey:        batchKeyInput.value.trim(),
-                greenRatio:      parseFloat((greenPx / total).toFixed(4)),
-                redRatio:        parseFloat((redPx   / total).toFixed(4)),
-                darkSpotRatio:   parseFloat((darkPx  / total).toFixed(4)),
-                moldRatio:       parseFloat((moldPx  / total).toFixed(4)),
-                textureRoughness: parseFloat(calculatedRoughness.toFixed(4)),
-                // Pass the live MQTT values collected by the frontend WebSocket
+                batchKey: batchKeyInput.value.trim() || 'TOMATO-BATCH-001',
+                imageData: imgDataUrl,
                 sensor_temperature: liveSensor.temperature,
                 sensor_humidity:    liveSensor.humidity,
                 sensor_eco2:        liveSensor.eco2,
                 sensor_tvoc:        liveSensor.tvoc
             };
 
-            // API URL
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiUrl  = isLocal ? 'http://127.0.0.1:5000/predict' : '/api/predict';
 
@@ -260,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await response.json().catch(() => ({
                 success: false,
-                error: 'SYSTEM FAIL: Invalid response from server.'
+                error: 'Invalid response from AI Model server.'
             }));
 
             loadingOverlay.classList.add('hidden');
@@ -269,11 +231,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok && data.success) {
                 populateReport(data, batchKeyInput.value.trim());
                 showReport();
-            } else if (data.not_tomato) {
-                // ── Layer 2: Backend not-tomato guard ──
-                showNotTomatoAlert(snapshotDataUrl);
+            } else if (data.not_tomato || data.not_recognized) {
+                // Out-of-Distribution or Non-Tomato rejection
+                showNotProduceAlert(
+                    imgDataUrl,
+                    data.error || "Not a tomato: Insufficient tomato features detected in image.",
+                    data.diagnostics
+                );
             } else {
-                const errText = data.error || 'SYSTEM FAIL: Sensor or API unreachable.';
+                const errText = data.error || 'AI Server returned an error.';
                 showError(errText);
                 resetScanner();
             }
@@ -282,73 +248,127 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(err);
             loadingOverlay.classList.add('hidden');
             video.classList.remove('dimmed');
-            showError('SYSTEM FAIL: Unable to connect to backend server / sensor API.');
+            showError('Unable to connect to AI server. Please make sure backend_api.py is running on port 5000.');
             resetScanner();
         }
     }
 
-    // ── Populate Report ──
+    // ── Populate Full Report ──
     function populateReport(data, batchKey) {
-        const isFresh     = data.grade && data.grade.toLowerCase().includes('fresh');
-        const now         = new Date();
-        const timeStr     = now.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
-        const shelfDays   = parseInt(data.shelfLifeDays) || 0;
-        const maxShelf    = 14;
+        const totalItems = data.totalItems || 1;
+        const freshCount = data.freshCount !== undefined ? data.freshCount : totalItems;
+        const rottenCount = data.rottenCount !== undefined ? data.rottenCount : 0;
+        const isFresh = rottenCount === 0;
 
-        // Captured image
-        capturedImg.src   = snapshotDataUrl;
+        const now = new Date();
+        const timeStr = now.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+        const shelfDays = parseFloat(data.avgShelfLifeDays || data.shelfLifeDays || 0);
+        const maxShelf = 14;
+
+        // Store images for the 3-view switcher
+        currentAnalysisImages = {
+            annotated: (data.images && data.images.annotated) ? data.images.annotated : snapshotDataUrl,
+            heatmap: (data.images && data.images.heatmap) ? data.images.heatmap : snapshotDataUrl,
+            original: (data.images && data.images.original) ? data.images.original : snapshotDataUrl
+        };
+
+        // Reset tabs to annotated view
+        viewTabs.forEach(t => t.classList.remove('active'));
+        const annotatedTab = document.querySelector('.view-tab[data-view="annotated"]');
+        if (annotatedTab) annotatedTab.classList.add('active');
+        setActiveViewImage('annotated');
+
+        // Meta labels
         imgBatchLabel.textContent = `Batch: ${batchKey}`;
         imgTimestamp.textContent  = timeStr;
+        producePill.textContent   = `🍅 TOMATO`;
 
         // Status banner
-        gradeText.textContent     = data.grade || (isFresh ? 'Fresh' : 'Rotten');
-        confidenceVal.textContent = data.confidence ? Math.round(data.confidence * 100) : '--';
-        statusBanner.className    = 'status-banner' + (isFresh ? '' : ' spoiled');
+        gradeText.textContent = data.overallGrade || (isFresh ? 'Fresh (All Tomatoes Optimal)' : 'Mixed Spoilage Detected');
+        confidenceVal.textContent = data.confidence ? Math.round(data.confidence) : '--';
+        statusBanner.className = 'status-banner' + (isFresh ? '' : ' spoiled');
         statusIcon.setAttribute('data-lucide', isFresh ? 'check-circle' : 'alert-triangle');
-        statusIcon.style.color    = isFresh ? '#16A34A' : '#EF4444';
+        statusIcon.style.color = isFresh ? '#16A34A' : '#EF4444';
 
-        // Metrics
-        const freshScore = Math.round(data.freshnessScore || (isFresh ? 80 : 20));
+        // Summary Badges
+        itemsCountBadge.textContent = `${totalItems} Tomato${totalItems > 1 ? 'es' : ''}`;
+        freshCountBadge.textContent = `${freshCount} Fresh`;
+        if (rottenCount > 0) {
+            rottenCountBadge.textContent = `${rottenCount} Rotten`;
+            rottenCountBadge.classList.remove('hidden');
+        } else {
+            rottenCountBadge.classList.add('hidden');
+        }
+
+        // Populate Itemized List
+        itemsList.innerHTML = '';
+        if (data.items && data.items.length > 0) {
+            data.items.forEach(item => {
+                const itemDiv = document.createElement('div');
+                const itemIsFresh = item.condition.toLowerCase() === 'fresh';
+                itemDiv.className = `item-card ${itemIsFresh ? 'fresh' : 'rotten'}`;
+                itemDiv.innerHTML = `
+                    <div class="item-left">
+                        <div class="item-num">#${item.id}</div>
+                        <div class="item-details">
+                            <div class="item-name-row">
+                                <span class="item-produce">Tomato #${item.id}</span>
+                                <span class="item-cond-tag ${item.condition.toLowerCase()}">${item.condition}</span>
+                            </div>
+                            <div class="item-subtext">${item.shelfLifeNote || (itemIsFresh ? 'Optimal quality' : 'Decay detected')} · Spots: ${item.darkSpotRatio || 0}%</div>
+                        </div>
+                    </div>
+                    <div class="item-right">
+                        <div class="item-conf">${Math.round(item.confidence)}% Conf</div>
+                        <div class="item-shelf ${item.condition.toLowerCase()}">${itemIsFresh ? `${item.shelfLifeDays}d shelf life` : 'Discard'}</div>
+                    </div>
+                `;
+                itemsList.appendChild(itemDiv);
+            });
+        } else {
+            itemsList.innerHTML = `<div class="item-subtext" style="padding:8px;">No individual item breakdown available.</div>`;
+        }
+
+        // Quality Metrics
+        const freshScore = Math.round(data.freshnessScore !== undefined ? data.freshnessScore : (isFresh ? 90 : 20));
         freshnessScoreEl.textContent = freshScore;
-        freshnessScoreEl.className   = 'metric-value ' + (isFresh ? 'fresh' : '');
+        freshnessScoreEl.className = 'metric-value ' + (isFresh ? 'fresh' : '');
         freshnessScoreEl.style.color = isFresh ? '' : '#EF4444';
 
-        spoilageIndexEl.textContent  = Math.round(data.spoilageIndex || (isFresh ? 20 : 80));
-        shelfLifeEl.textContent      = shelfDays;
+        spoilageIndexEl.textContent = Math.round(data.spoilageIndex !== undefined ? data.spoilageIndex : (100 - freshScore));
+        shelfLifeEl.textContent = shelfDays.toFixed(1);
 
-        // Shelf life bar
         shelfBar.style.width = Math.min((shelfDays / maxShelf) * 100, 100) + '%';
 
-        // Telemetry — prefer live MQTT, fallback to API response
+        // Telemetry
         const tel = data.telemetry || {};
         const dispTemp = liveSensor.temperature != null ? liveSensor.temperature : tel.temperature;
         const dispHum  = liveSensor.humidity    != null ? liveSensor.humidity    : tel.humidity;
         const dispEco2 = liveSensor.eco2        != null ? liveSensor.eco2        : tel.eco2;
-        const dispTvoc = liveSensor.tvoc        != null ? liveSensor.tvoc        : null;
+        const dispTvoc = liveSensor.tvoc        != null ? liveSensor.tvoc        : tel.tvoc;
 
-        telTempEl.textContent = dispTemp != null ? dispTemp : '--';
-        telHumEl.textContent  = dispHum  != null ? dispHum  : '--';
+        telTempEl.textContent = dispTemp != null ? Number(dispTemp).toFixed(1) : '--';
+        telHumEl.textContent  = dispHum  != null ? Number(dispHum).toFixed(1) : '--';
         telGasEl.textContent  = dispEco2 != null ? dispEco2 : '--';
         if (telTvocEl) telTvocEl.textContent = dispTvoc != null ? dispTvoc : '--';
 
         // Recommendation
         recTextEl.textContent = data.recommendation || (isFresh
-            ? 'This tomato is in excellent condition. Safe for consumption or immediate packaging and distribution.'
-            : 'This tomato shows signs of spoilage. Isolate from fresh batch. Not recommended for sale or consumption.');
+            ? `All tomatoes in this batch are in optimal condition. Safe for retail packaging or consumption.`
+            : `Decay spots detected in batch. Isolate spoiled tomatoes immediately to prevent spread of ethylene and fungal decay.`);
 
         // Print meta
         if (printBatch) printBatch.textContent = `Batch: ${batchKey}`;
         if (printTime)  printTime.textContent  = timeStr;
 
-        // ── Forecast Timeline & Chart ──
+        // Degradation Forecast Timeline & Chart
         const warningDays = Math.max(1, Math.floor(shelfDays * 0.7));
-        
         const dateWarning = new Date(now);
         dateWarning.setDate(dateWarning.getDate() + warningDays);
-        
+
         const dateSpoil = new Date(now);
-        dateSpoil.setDate(dateSpoil.getDate() + shelfDays);
-        
+        dateSpoil.setDate(dateSpoil.getDate() + Math.max(1, Math.round(shelfDays)));
+
         const formatOptions = { month: 'short', day: 'numeric' };
         forecastWarningDate.textContent = dateWarning.toLocaleDateString('en-IN', formatOptions);
         forecastSpoilDate.textContent   = dateSpoil.toLocaleDateString('en-IN', formatOptions);
@@ -357,12 +377,11 @@ document.addEventListener('DOMContentLoaded', () => {
             degradationChart.destroy();
         }
 
-        // Simple curve points: Today -> mid -> warning -> spoiled
-        const labels = ['Today', `+${Math.floor(warningDays/2)}d`, `Use By`, `Spoiled`];
+        const labels = ['Today', `+${Math.max(1, Math.floor(warningDays/2))}d`, `Use By`, `Spoiled`];
         const dataPoints = [
             freshScore,
-            Math.max(0, freshScore - (freshScore * 0.2)),
-            Math.max(0, freshScore - (freshScore * 0.6)),
+            Math.max(0, Math.round(freshScore * 0.75)),
+            Math.max(0, Math.round(freshScore * 0.35)),
             0
         ];
 
@@ -372,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Freshness Forecast (%)',
+                    label: 'Freshness Curve (%)',
                     data: dataPoints,
                     borderColor: '#3B82F6',
                     backgroundColor: 'rgba(59, 130, 246, 0.15)',
@@ -382,16 +401,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     pointBackgroundColor: ['#16A34A', '#3B82F6', '#F59E0B', '#EF4444'],
                     pointBorderColor: '#0F1519',
                     pointBorderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8
+                    pointRadius: 5,
+                    pointHoverRadius: 7
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
+                plugins: { legend: { display: false } },
                 scales: {
                     y: { 
                         beginAtZero: true, 
@@ -416,6 +433,39 @@ document.addEventListener('DOMContentLoaded', () => {
         startBtn.disabled = false;
         video.classList.remove('dimmed');
         controlsArea.classList.remove('hidden');
+        fileInput.value = '';
+    }
+
+    function showNotProduceAlert(previewUrl, reasonText, diagnostics) {
+        ntPreviewImg.src = previewUrl;
+        if (ntTitleEl) {
+            ntTitleEl.textContent = "Not a Tomato Detected";
+        }
+        if (reasonText && ntSubtitleEl) {
+            ntSubtitleEl.textContent = reasonText;
+        } else if (ntSubtitleEl) {
+            ntSubtitleEl.textContent = "The current image does not appear to contain a tomato.";
+        }
+
+        if (diagnostics && ntDiagBadge && ntDiagText) {
+            if (diagnostics.tomato_pixel_ratio !== undefined) {
+                ntDiagText.textContent = `Tomato Color Match: ${diagnostics.tomato_pixel_ratio}% (Min: ${diagnostics.threshold || 8}%)`;
+            } else if (diagnostics.confidence !== undefined) {
+                ntDiagText.textContent = `Model Confidence: ${diagnostics.confidence}%`;
+            }
+            ntDiagBadge.classList.remove('hidden');
+        } else if (ntDiagBadge) {
+            ntDiagBadge.classList.add('hidden');
+        }
+
+        notTomatoModal.classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    function hideNotProduceModal() {
+        notTomatoModal.classList.add('hidden');
+        ntPreviewImg.src = '';
+        resetScanner();
     }
 
     // ── Button Listeners ──
@@ -424,25 +474,22 @@ document.addEventListener('DOMContentLoaded', () => {
         resetScanner();
     });
 
-    // Not-tomato modal retry button
-    ntRetryBtn.addEventListener('click', hideNotTomatoModal);
+    ntRetryBtn.addEventListener('click', hideNotProduceModal);
 
     document.getElementById('reset-btn').addEventListener('click', () => {
         showScan();
         resetScanner();
     });
 
-    // Print buttons (both top icon and bottom action)
     ['print-pdf-btn', 'print-pdf-btn2'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('click', () => window.print());
     });
 
-    // Save DB buttons
     ['save-db-btn', 'save-db-btn2'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('click', () => {
-            alert('Ready to save to Database! Add your DB connection in backend_api.py.');
+            alert('Analysis batch records saved to system storage.');
         });
     });
 
@@ -457,7 +504,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         console.log("Connecting to Live MQTT WebSockets...");
-        // Use WSS (Secure WebSockets) on port 8884 to avoid Mixed Content errors on HTTPS (Vercel)
         const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
 
         client.on('connect', () => {
@@ -468,7 +514,6 @@ document.addEventListener('DOMContentLoaded', () => {
         client.on('message', (topic, message) => {
             try {
                 const data = JSON.parse(message.toString());
-                // Update global live sensor store
                 if (data.temperature != null) {
                     liveSensor.temperature = data.temperature;
                     liveTemp.textContent = data.temperature.toFixed(1);

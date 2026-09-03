@@ -17,7 +17,6 @@ build/
 venv/
 
 # ML Models (large files)
-*.keras
 *.h5
 data/saved_models/*.pth
 

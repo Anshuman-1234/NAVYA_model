@@ -1,6 +1,7 @@
 const express = require("express");
 const mqtt = require("mqtt");
 const cors = require("cors");
+const path = require("path");
 
 // =================================================
 // EXPRESS
@@ -8,6 +9,9 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serve static frontend files from 'public' directory
+app.use(express.static(path.join(__dirname, "public")));
 
 // =================================================
 // MQTT
@@ -91,14 +95,13 @@ app.get("/api/data", (req, res) => {
     res.json(latestData);
 });
 
-// =================================================
-// Health check
-// =================================================
-app.get("/", (req, res) => {
+// Health check endpoint
+app.get("/api/status", (req, res) => {
     res.json({
         status: "online",
         service: "NAVYA MQTT Sensor API",
-        mqttTopic: MQTT_TOPIC
+        mqttTopic: MQTT_TOPIC,
+        latestData: latestData
     });
 });
 
@@ -109,8 +112,10 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, "0.0.0.0", () => {
     console.log("\n================================");
-    console.log("NAVYA BACKEND RUNNING");
+    console.log("NAVYA FRONTEND & BACKEND RUNNING");
     console.log("Port:", PORT);
     console.log("================================");
-    console.log(`API: http://localhost:${PORT}/api/data`);
+    console.log(`Frontend UI : http://localhost:${PORT}`);
+    console.log(`Sensor API  : http://localhost:${PORT}/api/data`);
+    console.log(`Status API  : http://localhost:${PORT}/api/status`);
 });
