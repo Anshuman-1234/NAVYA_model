@@ -8,6 +8,14 @@ import cv2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+# Ensure the fusion_model directory is in path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+try:
+    from fusion_model.realtime_api_listener import RealtimeFusionEngine
+except ImportError as e:
+    print(f"Error importing RealtimeFusionEngine: {e}")
+    RealtimeFusionEngine = None
+
 # ==========================================
 # 0. Global Setup & Class Definitions
 # ==========================================
@@ -40,9 +48,18 @@ LOCKED_PRODUCE = "Tomato"
 
 model = None
 tf = None
+fusion_engine = None
 
 def load_keras_model():
-    global model, tf
+    global model, tf, fusion_engine
+    
+    if fusion_engine is None and RealtimeFusionEngine is not None:
+        try:
+            print("Initializing Realtime Fusion Engine (Loading PyTorch Model...)")
+            fusion_engine = RealtimeFusionEngine()
+        except Exception as e:
+            print(f"Error loading fusion engine: {e}")
+
     if model is not None:
         return model
     try:
@@ -449,16 +466,100 @@ def predict_endpoint():
         sensor_hum = data.get('sensor_humidity')
         sensor_eco2 = data.get('sensor_eco2')
         sensor_tvoc = data.get('sensor_tvoc')
+        sensor_ethanol = data.get('sensor_raw_ethanol')
+        sensor_h2 = data.get('sensor_raw_h2')
+        sensor_ethanol_idx = data.get('sensor_ethanol_index')
+        sensor_ethylene_idx = data.get('sensor_ethylene_index')
+        sensor_h2s_idx = data.get('sensor_h2s_index')
+
+        sensor_data = {
+            "temperature": float(sensor_temp) if sensor_temp is not None else None,
+            "humidity": float(sensor_hum) if sensor_hum is not None else None,
+            "eco2": float(sensor_eco2) if sensor_eco2 is not None else None,
+            "tvoc": float(sensor_tvoc) if sensor_tvoc is not None else None,
+            "raw_ethanol": float(sensor_ethanol) if sensor_ethanol is not None else None,
+            "raw_h2": float(sensor_h2) if sensor_h2 is not None else None,
+            "ethanol_index": float(sensor_ethanol_idx) if sensor_ethanol_idx is not None else None,
+            "ethylene_index": float(sensor_ethylene_idx) if sensor_ethylene_idx is not None else None,
+            "h2s_index": float(sensor_h2s_idx) if sensor_h2s_idx is not None else None
+        }
+
+        if sensor_data["temperature"] is None and fusion_engine is not None:
+            try:
+                fetched_sensors = fusion_engine.fetch_sensor_telemetry()
+                if fetched_sensors.get("temperature") is not None:
+                    sensor_data.update(fetched_sensors)
+            except Exception:
+                pass
+                
+        # Aggregate visual features for Fusion Engine
+        avg_dark_spot = 0.0
+        avg_texture = 0.0
+        if len(result.get("items", [])) > 0:
+            avg_dark_spot = sum(item['darkSpotRatio'] for item in result['items']) / len(result['items']) / 100.0
+            avg_texture = sum(item['textureVariance'] for item in result['items']) / len(result['items'])
+            
+        total = result.get("totalItems", 1)
+        fresh = result.get("freshCount", 0)
+        rotten = result.get("rottenCount", 0)
+        
+        red_ratio = fresh / total if total > 0 else 0.8
+        mold = (rotten / total) * 0.1 if total > 0 else 0.0
+        green_ratio = 1.0 - red_ratio - mold
+
+        visual_features = [green_ratio, red_ratio, avg_dark_spot, mold, avg_texture]
+
+        if fusion_engine is not None:
+            try:
+                fusion_result = fusion_engine.predict(sensor_data, visual_features=visual_features)
+                
+                result["grade"] = fusion_result["fusion_prediction"]["quality_grade"]
+                result["overallGrade"] = result["grade"]
+                result["shelfLifeDays"] = fusion_result["fusion_prediction"]["remaining_shelf_life_days"]
+                result["avgShelfLifeDays"] = result["shelfLifeDays"]
+                result["confidence"] = fusion_result["fusion_prediction"]["class_confidence"] * 100
+                
+                if "Fresh" in result["grade"]:
+                    result["spoilageIndex"] = max(0, 100 - int(result["confidence"]))
+                    result["freshnessScore"] = int(result["confidence"])
+                else:
+                    result["spoilageIndex"] = int(result["confidence"])
+                    result["freshnessScore"] = max(0, 100 - int(result["confidence"]))
+                    
+                result["recommendation"] = fusion_result["fusion_prediction"]["preventive_action"]
+            except Exception as e:
+                print(f"Fusion engine prediction failed: {e}")
+                result["grade"] = result["overallGrade"]
+                result["shelfLifeDays"] = result["avgShelfLifeDays"]
+        else:
+            result["grade"] = result["overallGrade"]
+            result["shelfLifeDays"] = result["avgShelfLifeDays"]
+
+        # Determine Eatable status based on chemicals and fusion model
+        eatable = True
+        if "Spoiled" in result.get("overallGrade", "") or "Rotten" in result.get("grade", "") or "Defective" in result.get("grade", ""):
+            eatable = False
+        if sensor_data.get("ethanol_index") is not None and sensor_data["ethanol_index"] > 0.4:
+            eatable = False
+        if sensor_data.get("ethylene_index") is not None and sensor_data["ethylene_index"] > 0.5:
+            eatable = False
+        if sensor_data.get("h2s_index") is not None and sensor_data["h2s_index"] > 0.4:
+            eatable = False
+
+        result["eatableStatus"] = "Safe / Eatable" if eatable else "Not Eatable / Toxic"
 
         result["telemetry"] = {
-            "temperature": sensor_temp if sensor_temp is not None else 22.4,
-            "humidity": sensor_hum if sensor_hum is not None else 65.0,
-            "eco2": sensor_eco2 if sensor_eco2 is not None else 480,
-            "tvoc": sensor_tvoc if sensor_tvoc is not None else 12
+            "temperature": sensor_data["temperature"] if sensor_data["temperature"] is not None else 22.4,
+            "humidity": sensor_data["humidity"] if sensor_data["humidity"] is not None else 65.0,
+            "eco2": sensor_data["eco2"] if sensor_data["eco2"] is not None else 480,
+            "tvoc": sensor_data["tvoc"] if sensor_data["tvoc"] is not None else 12,
+            "raw_ethanol": sensor_data["raw_ethanol"] if sensor_data["raw_ethanol"] is not None else 19000,
+            "raw_h2": sensor_data["raw_h2"] if sensor_data["raw_h2"] is not None else 14200,
+            "ethanol_index": sensor_data["ethanol_index"] if sensor_data["ethanol_index"] is not None else 0.25,
+            "ethylene_index": sensor_data["ethylene_index"] if sensor_data["ethylene_index"] is not None else 0.35,
+            "h2s_index": sensor_data["h2s_index"] if sensor_data["h2s_index"] is not None else 0.30
         }
         result["batchKey"] = data.get('batchKey', 'BATCH-001')
-        result["grade"] = result["overallGrade"]
-        result["shelfLifeDays"] = result["avgShelfLifeDays"]
 
         return jsonify(result)
 

@@ -42,7 +42,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const telHumEl         = document.getElementById('tel-hum');
     const telGasEl         = document.getElementById('tel-gas');
     const telTvocEl        = document.getElementById('tel-tvoc');
+    const telEthEl         = document.getElementById('tel-eth');
+    const telH2El          = document.getElementById('tel-h2');
+    const telEthIdxEl      = document.getElementById('tel-eth-idx');
+    const telEthyleneIdxEl = document.getElementById('tel-ethylene-idx');
+    const telH2sIdxEl      = document.getElementById('tel-h2s-idx');
     const recTextEl        = document.getElementById('rec-text');
+    const eatableBadge     = document.getElementById('eatable-badge');
 
     // View selector tabs
     const viewTabs         = document.querySelectorAll('.view-tab');
@@ -66,7 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const ntPreviewImg    = document.getElementById('nt-preview-img');
     const ntRetryBtn      = document.getElementById('nt-retry-btn');
 
+    // QR Code Modal elements
+    const qrModal         = document.getElementById('qr-modal');
+    const qrCodeImg       = document.getElementById('qr-code-img');
+    const closeQrBtn      = document.getElementById('close-qr-btn');
+
     let stream = null;
+    let videoTrack = null;
     let isProcessing = false;
     let snapshotDataUrl = '';
     let currentAnalysisImages = {
@@ -76,7 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Global live MQTT snapshot (updated every message)
-    let liveSensor = { temperature: null, humidity: null, eco2: null, tvoc: null };
+    let liveSensor = { 
+        temperature: null, humidity: null, eco2: null, tvoc: null,
+        raw_ethanol: null, raw_h2: null, ethanol_index: null, ethylene_index: null, h2s_index: null
+    };
 
     // ── Camera ──
     async function startCamera() {
@@ -85,10 +100,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 960 } }
             });
             video.srcObject = stream;
+            videoTrack = stream.getVideoTracks()[0];
         } catch (err) {
             console.warn('Camera access unavailable or blocked:', err);
         }
     }
+    
+    // ── Camera Zoom ──
+    const zoomSlider = document.getElementById('camera-zoom');
+    zoomSlider.addEventListener('input', (e) => {
+        const zoomValue = Number(e.target.value);
+        if (videoTrack) {
+            const capabilities = videoTrack.getCapabilities();
+            if (capabilities.zoom) {
+                videoTrack.applyConstraints({
+                    advanced: [{ zoom: zoomValue }]
+                }).catch(err => console.log('Zoom failed: ', err));
+                return;
+            }
+        }
+        // Fallback to CSS digital zoom
+        video.style.transform = `scale(${zoomValue})`;
+    });
 
     // ── Error Banner ──
     function showError(msg) {
@@ -208,7 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 sensor_temperature: liveSensor.temperature,
                 sensor_humidity:    liveSensor.humidity,
                 sensor_eco2:        liveSensor.eco2,
-                sensor_tvoc:        liveSensor.tvoc
+                sensor_tvoc:        liveSensor.tvoc,
+                sensor_raw_ethanol: liveSensor.raw_ethanol,
+                sensor_raw_h2:      liveSensor.raw_h2,
+                sensor_ethanol_index: liveSensor.ethanol_index,
+                sensor_ethylene_index: liveSensor.ethylene_index,
+                sensor_h2s_index:    liveSensor.h2s_index
             };
 
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -289,6 +327,12 @@ document.addEventListener('DOMContentLoaded', () => {
         statusBanner.className = 'status-banner' + (isFresh ? '' : ' spoiled');
         statusIcon.setAttribute('data-lucide', isFresh ? 'check-circle' : 'alert-triangle');
         statusIcon.style.color = isFresh ? '#16A34A' : '#EF4444';
+        
+        // Eatable Badge
+        if (data.eatableStatus) {
+            eatableBadge.textContent = data.eatableStatus.toUpperCase();
+            eatableBadge.className = 'produce-pill ' + (data.eatableStatus.includes('Safe') ? 'badge-green' : 'badge-red');
+        }
 
         // Summary Badges
         itemsCountBadge.textContent = `${totalItems} Tomato${totalItems > 1 ? 'es' : ''}`;
@@ -346,11 +390,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const dispHum  = liveSensor.humidity    != null ? liveSensor.humidity    : tel.humidity;
         const dispEco2 = liveSensor.eco2        != null ? liveSensor.eco2        : tel.eco2;
         const dispTvoc = liveSensor.tvoc        != null ? liveSensor.tvoc        : tel.tvoc;
+        
+        const dispEth  = liveSensor.raw_ethanol != null ? liveSensor.raw_ethanol : tel.raw_ethanol;
+        const dispH2   = liveSensor.raw_h2      != null ? liveSensor.raw_h2      : tel.raw_h2;
+        const dispEthI = liveSensor.ethanol_index != null ? liveSensor.ethanol_index : tel.ethanol_index;
+        const dispEtI  = liveSensor.ethylene_index != null ? liveSensor.ethylene_index : tel.ethylene_index;
+        const dispH2sI = liveSensor.h2s_index   != null ? liveSensor.h2s_index   : tel.h2s_index;
 
         telTempEl.textContent = dispTemp != null ? Number(dispTemp).toFixed(1) : '--';
         telHumEl.textContent  = dispHum  != null ? Number(dispHum).toFixed(1) : '--';
         telGasEl.textContent  = dispEco2 != null ? dispEco2 : '--';
         if (telTvocEl) telTvocEl.textContent = dispTvoc != null ? dispTvoc : '--';
+        if (telEthEl) telEthEl.textContent = dispEth != null ? dispEth : '--';
+        if (telH2El) telH2El.textContent = dispH2 != null ? dispH2 : '--';
+        if (telEthIdxEl) telEthIdxEl.textContent = dispEthI != null ? Number(dispEthI).toFixed(3) : '--';
+        if (telEthyleneIdxEl) telEthyleneIdxEl.textContent = dispEtI != null ? Number(dispEtI).toFixed(3) : '--';
+        if (telH2sIdxEl) telH2sIdxEl.textContent = dispH2sI != null ? Number(dispH2sI).toFixed(3) : '--';
 
         // Recommendation
         recTextEl.textContent = data.recommendation || (isFresh
@@ -485,6 +540,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('click', () => window.print());
     });
+    
+    // ── QR Code ──
+    ['qr-code-btn', 'qr-code-btn2'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', () => {
+            const currentUrl = window.location.href;
+            const reportUrl = `${currentUrl}?report=${batchKeyInput.value.trim()}`;
+            qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(reportUrl)}`;
+            qrModal.classList.remove('hidden');
+            lucide.createIcons();
+        });
+    });
+    
+    if (closeQrBtn) {
+        closeQrBtn.addEventListener('click', () => qrModal.classList.add('hidden'));
+    }
 
     ['save-db-btn', 'save-db-btn2'].forEach(id => {
         const el = document.getElementById(id);
@@ -529,6 +600,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.tvoc != null) {
                     liveSensor.tvoc = data.tvoc;
                 }
+                if (data.raw_ethanol != null) liveSensor.raw_ethanol = data.raw_ethanol;
+                if (data.raw_h2 != null) liveSensor.raw_h2 = data.raw_h2;
+                if (data.ethanol_index != null) liveSensor.ethanol_index = data.ethanol_index;
+                if (data.ethylene_index != null) liveSensor.ethylene_index = data.ethylene_index;
+                if (data.h2s_index != null) liveSensor.h2s_index = data.h2s_index;
             } catch(e) {
                 console.error("Invalid live MQTT JSON", e);
             }

@@ -7,7 +7,12 @@ client.on("connect", () => {
         temperature: 24.5,
         humidity: 60.2,
         eco2: 450,
-        tvoc: 15
+        tvoc: 15,
+        raw_ethanol: 18500,
+        raw_h2: 14200,
+        ethanol_index: 0.2,
+        ethylene_index: 0.3,
+        h2s_index: 0.15
     });
     
     client.publish("navya/anshuman/sensors", payload, () => {

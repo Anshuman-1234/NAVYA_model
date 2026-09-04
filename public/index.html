@@ -65,6 +65,13 @@
                 <div class="loading-text">AI TOMATO QUALITY ANALYSIS</div>
                 <div class="loading-sub">Watershed Itemization · Keras Model · Grad-CAM Heatmap</div>
             </div>
+
+            <!-- Camera Zoom Slider -->
+            <div class="zoom-slider-container no-print">
+                <i data-lucide="zoom-out" style="width:16px;color:#fff;"></i>
+                <input type="range" id="camera-zoom" class="zoom-slider" min="1" max="3" step="0.1" value="1">
+                <i data-lucide="zoom-in" style="width:16px;color:#fff;"></i>
+            </div>
         </div>
 
         <!-- Controls -->
@@ -112,8 +119,12 @@
                 <div class="report-title-group">
                     <div class="report-title">Tomato Report</div>
                     <span id="produce-pill" class="produce-pill">🍅 TOMATO</span>
+                    <span id="eatable-badge" class="produce-pill badge-green" style="margin-left: 8px;">SAFE / EATABLE</span>
                 </div>
                 <div class="report-actions-top">
+                    <button id="qr-code-btn" class="icon-btn" title="Show QR Code">
+                        <i data-lucide="qr-code"></i>
+                    </button>
                     <button id="print-pdf-btn" class="icon-btn" title="Print PDF">
                         <i data-lucide="printer"></i>
                     </button>
@@ -285,6 +296,41 @@
                             <div class="telem-value"><span id="tel-tvoc">--</span><span class="telem-unit">ppb</span></div>
                         </div>
                     </div>
+                    <div class="telem-item">
+                        <i data-lucide="flask-conical" class="telem-icon temp-icon"></i>
+                        <div>
+                            <div class="telem-label">Raw Ethanol</div>
+                            <div class="telem-value"><span id="tel-eth">--</span></div>
+                        </div>
+                    </div>
+                    <div class="telem-item">
+                        <i data-lucide="flask-conical" class="telem-icon hum-icon"></i>
+                        <div>
+                            <div class="telem-label">Raw H2</div>
+                            <div class="telem-value"><span id="tel-h2">--</span></div>
+                        </div>
+                    </div>
+                    <div class="telem-item">
+                        <i data-lucide="activity" class="telem-icon gas-icon"></i>
+                        <div>
+                            <div class="telem-label">Ethanol Idx</div>
+                            <div class="telem-value"><span id="tel-eth-idx">--</span></div>
+                        </div>
+                    </div>
+                    <div class="telem-item">
+                        <i data-lucide="activity" class="telem-icon gas-icon"></i>
+                        <div>
+                            <div class="telem-label">Ethylene Idx</div>
+                            <div class="telem-value"><span id="tel-ethylene-idx">--</span></div>
+                        </div>
+                    </div>
+                    <div class="telem-item">
+                        <i data-lucide="activity" class="telem-icon gas-icon"></i>
+                        <div>
+                            <div class="telem-label">H2S Idx</div>
+                            <div class="telem-value"><span id="tel-h2s-idx">--</span></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -301,6 +347,9 @@
             <div class="action-row no-print">
                 <button id="print-pdf-btn2" class="btn-action btn-green">
                     <i data-lucide="download" style="width:16px;"></i> Download / Print PDF
+                </button>
+                <button id="qr-code-btn2" class="btn-action btn-blue" style="background:var(--surface2);">
+                    <i data-lucide="qr-code" style="width:16px;"></i> Report QR Code
                 </button>
                 <button id="save-db-btn2" class="btn-action btn-blue">
                     <i data-lucide="database" style="width:16px;"></i> Save to Database
@@ -348,6 +397,21 @@
             <button class="btn-nt-retry" id="nt-retry-btn">
                 <i data-lucide="refresh-cw"></i>
                 Try Again
+            </button>
+        </div>
+    </div>
+
+    <!-- QR CODE MODAL -->
+    <div id="qr-modal" class="not-tomato-modal hidden">
+        <div class="not-tomato-card" style="padding-bottom: 30px;">
+            <div class="nt-title">Report QR Code</div>
+            <div class="nt-subtitle">Scan to open the PDF report on your mobile device.</div>
+            <div style="background: white; padding: 16px; border-radius: 12px; margin: 16px 0;">
+                <img id="qr-code-img" src="" alt="QR Code" style="width: 200px; height: 200px; display: block;">
+            </div>
+            <button class="btn-nt-retry" id="close-qr-btn">
+                <i data-lucide="x"></i>
+                Close
             </button>
         </div>
     </div>
