@@ -18,8 +18,7 @@ venv/
 
 # ML Models (large files)
 
-*.h5
-data/saved_models/*.pth
+
 
 # Jupyter Notebooks checkpoints
 .ipynb_checkpoints/
