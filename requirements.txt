@@ -7,3 +7,4 @@ flask-cors>=3.0.10
 matplotlib>=3.7.0
 Pillow>=9.5.0
 requests>=2.28.0
+gunicorn>=21.2.0
