@@ -90,6 +90,13 @@ class handler(BaseHTTPRequestHandler):
         hum = body.get('sensor_humidity') or round(65.0 + random.uniform(-3.0, 5.0), 1)
         eco2 = body.get('sensor_eco2') or int(480 + random.randint(-20, 50))
         tvoc = body.get('sensor_tvoc') or random.randint(8, 25)
+        raw_eth = body.get('sensor_raw_ethanol') or random.randint(18000, 19500)
+        raw_h2 = body.get('sensor_raw_h2') or random.randint(13000, 14500)
+        eth_idx = body.get('sensor_ethanol_index') or round(random.uniform(0.1, 0.4), 3)
+        ethyle_idx = body.get('sensor_ethylene_index') or round(random.uniform(0.1, 0.5), 3)
+        h2s_idx = body.get('sensor_h2s_index') or round(random.uniform(0.05, 0.3), 3)
+        
+        eatableStatus = "Not Eatable / Toxic" if rotten_count > 0 or eth_idx > 0.4 or h2s_idx > 0.4 else "Safe / Eatable"
 
         response_payload = {
             "success": True,
@@ -104,6 +111,7 @@ class handler(BaseHTTPRequestHandler):
             "spoilageIndex": spoilage_index,
             "avgShelfLifeDays": avg_shelf,
             "recommendation": rec,
+            "eatableStatus": eatableStatus,
             "items": items,
             "images": {
                 "original": raw_img,
@@ -114,7 +122,12 @@ class handler(BaseHTTPRequestHandler):
                 "temperature": temp,
                 "humidity": hum,
                 "eco2": eco2,
-                "tvoc": tvoc
+                "tvoc": tvoc,
+                "raw_ethanol": raw_eth,
+                "raw_h2": raw_h2,
+                "ethanol_index": eth_idx,
+                "ethylene_index": ethyle_idx,
+                "h2s_index": h2s_idx
             },
             "grade": overall_grade,
             "shelfLifeDays": avg_shelf
