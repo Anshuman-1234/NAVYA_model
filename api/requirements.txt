@@ -1,0 +1,4 @@
+# This file is intentionally left blank.
+# Vercel will use this file for the `api/` serverless functions 
+# instead of the root requirements.txt which contains heavy ML 
+# dependencies (Tensorflow, OpenCV) that exceed Vercel's 500MB limit.
